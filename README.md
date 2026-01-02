@@ -60,6 +60,7 @@ postdad
 - [x] Search / Filter JSON (`/` key)
 - [x] Environment Variables
 - [x] Request Body Editor (`b` key -> `$EDITOR`)
+   - *Pro Tip*: For VS Code integration, run `export EDITOR="code --wait"` (Mac/Linux) or set `$env:EDITOR="code --wait"` (PowerShell).
 - [x] Method Cycling (`m` key)
 
 ## License

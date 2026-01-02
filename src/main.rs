@@ -46,16 +46,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             terminal.show_cursor()?;
 
             // 2. Open Editor
-            let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nano".to_string());
+            // Cross-platform handling
+            let editor_var = std::env::var("EDITOR");
+            let editor_cmd = if let Ok(e) = editor_var {
+                e
+            } else {
+                if cfg!(target_os = "windows") {
+                    // Try 'code --wait' (VS Code) first, then 'notepad'
+                    // We can't easily check if code is in PATH without running it, so let's default to notepad if EDITOR not set
+                    "notepad".to_string()
+                } else {
+                    "nano".to_string()
+                }
+            };
+            
             let mut file_path = std::env::temp_dir();
             file_path.push("postdad_body.json");
             
             // write current body to file
             std::fs::write(&file_path, &app.request_body)?;
 
-            let status = std::process::Command::new(&editor)
-                .arg(&file_path)
-                .status();
+            // On Windows, if using 'code', shell execution might be needed? 
+            // process::Command works fine for executables.
+            // If user set EDITOR="code --wait", we need to split arguments
+            
+            let mut parts = editor_cmd.split_whitespace();
+            let command = parts.next().unwrap_or("notepad");
+            let args: Vec<&str> = parts.collect();
+
+            let mut cmd = std::process::Command::new(command);
+            cmd.args(&args).arg(&file_path);
+            
+            let status = cmd.status();
 
             // 3. Read back
             if let Ok(s) = status {
