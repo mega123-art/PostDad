@@ -62,9 +62,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 app.previous_item();
             }
             // Tree Expansion
-            KeyCode::Char('h') | KeyCode::Left => {
-                app.set_expanded_current_selection(false);
-            }
+
             KeyCode::Char('l') | KeyCode::Right => {
                 app.set_expanded_current_selection(true);
             }
@@ -85,6 +83,25 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             KeyCode::Char('b') => {
                 app.selected_tab = 2; // Jump to body
                 app.trigger_editor();
+            }
+            KeyCode::Char('?') => {
+                app.show_help = !app.show_help;
+            }
+            KeyCode::Char('h') | KeyCode::Left => { // Override 'h' for editor if in headers tab?
+                 // Conflict with Left navigation. 
+                 // Vim users expect h/j/k/l for nav.
+                 // Let's use 'H' (Shift+h) for Headers Editor just to be safe, or check modifiers.
+                 // Or stick to Context: if selected_tab == 1 (Headers), then 'e' or 'Enter' opens editor?
+                 // Let's make 'h' navigation only.
+                 // And add 'H' for headers.
+                 app.set_expanded_current_selection(false);
+            }
+            KeyCode::Char('H') => {
+                app.selected_tab = 1; // Jump to headers
+                app.trigger_header_editor();
+            }
+            KeyCode::Char('s') => {
+                app.save_current_request();
             }
             KeyCode::Char('c') => {
                 let cmd = app.generate_curl_command();

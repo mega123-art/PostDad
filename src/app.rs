@@ -40,6 +40,13 @@ impl JsonEntry {
     }
 }
 
+#[derive(PartialEq)]
+pub enum EditorMode {
+    None,
+    Body,
+    Headers,
+}
+
 pub struct App {
     pub url: String,
     pub method: String,
@@ -58,6 +65,7 @@ pub struct App {
 
     // New features
     pub latency: Option<u128>,
+    pub status_code: Option<u16>, // New Status Code
     pub search_query: String,
     
     // Environment
@@ -69,8 +77,11 @@ pub struct App {
     
     // Body & Editing
     pub request_body: String,
-    pub should_open_editor: bool,
+    pub editor_mode: EditorMode, // Replaces should_open_editor boolean
     pub request_headers: std::collections::HashMap<String, String>,
+    
+    // Help
+    pub show_help: bool,
 }
 
 use ratatui::widgets::ListState;
@@ -99,6 +110,7 @@ impl App {
             active_sidebar: false,
             
             latency: None,
+            status_code: None,
             search_query: String::new(),
             
             environments,
@@ -107,9 +119,15 @@ impl App {
             request_history: Vec::new(),
             
             request_body: String::new(),
-            should_open_editor: false,
+            editor_mode: EditorMode::None,
             request_headers: std::collections::HashMap::new(),
+            
+            show_help: false,
         }
+    }
+    
+    pub fn should_open_editor(&self) -> bool {
+        self.editor_mode != EditorMode::None
     }
 
     pub fn get_active_env(&self) -> &Environment {
@@ -148,7 +166,23 @@ impl App {
     }
     
     pub fn trigger_editor(&mut self) {
-        self.should_open_editor = true;
+        self.editor_mode = EditorMode::Body;
+    }
+    
+    pub fn trigger_header_editor(&mut self) {
+        self.editor_mode = EditorMode::Headers;
+    }
+
+    pub fn save_current_request(&mut self) {
+        // Save to "saved.hcl" with a timestamp-based name
+        let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+        let name = format!("Saved Request {}", timestamp);
+        
+        if let Err(e) = Collection::save_to_file(&name, &self.method, &self.url, &self.request_body, &self.request_headers) {
+             self.popup_message = Some(format!("Save Failed: {}", e));
+        } else {
+             self.popup_message = Some("Saved to collections/saved.hcl (Restart to view)".to_string());
+        }
     }
 
 

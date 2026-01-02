@@ -7,12 +7,12 @@ use ratatui::{
 };
 use crate::app::{App, InputMode, JsonEntry};
 
-fn get_style_for_value(value: &serde_json::Value) -> Style {
-    match value {
+fn get_style_for_value(v: &serde_json::Value) -> Style {
+    match v {
         serde_json::Value::String(_) => Style::default().fg(Color::Green),
-        serde_json::Value::Number(_) => Style::default().fg(Color::Yellow),
-        serde_json::Value::Bool(_) => Style::default().fg(Color::Magenta), // Purpleish
-        serde_json::Value::Null => Style::default().fg(Color::DarkGray),
+        serde_json::Value::Number(_) => Style::default().fg(Color::Blue),
+        serde_json::Value::Bool(_) => Style::default().fg(Color::Yellow),
+        serde_json::Value::Null => Style::default().fg(Color::Red),
         _ => Style::default(),
     }
 }
@@ -63,8 +63,7 @@ fn flatten_tree(entries: &[JsonEntry], list_items: &mut Vec<ListItem<'static>>, 
 }
 
 pub fn render(f: &mut Frame, app: &mut App) {
-    // ... (Layout splitting logic same as before, see lines 52-68 of original) ...
-    // 1. Define the Main Areas (Sidebar vs Content)
+    // 1. Define the Main Areas
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
@@ -73,36 +72,26 @@ pub fn render(f: &mut Frame, app: &mut App) {
         ])
         .split(f.area());
 
-    // 2. Split the Main Content (Top: Request, Bottom: Response)
     let main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),      // URL Bar
-            Constraint::Percentage(40), // Request Config (Headers/Body)
-            Constraint::Min(10),        // Response Area
+            Constraint::Length(3),      // Header/Tabs (Keep structure simple)
+            Constraint::Min(10),        // Content
         ])
         .split(chunks[1]);
 
-    // ... (Sidebar Rendering lines 70-98, unmodified) ...
     // --- SIDEBAR ---
-    let sidebar_title = format!(" {} (Ctrl+e to switch Env) ", app.get_active_env().name);
+    let sidebar_title = format!(" Postdad (Env: {}) ", app.get_active_env().name);
     let sidebar_block = Block::default()
         .title(sidebar_title)
         .borders(Borders::ALL)
         .border_style(if app.active_sidebar { 
             Style::default().fg(Color::Yellow) 
         } else { 
-            Style::default().fg(Color::Cyan) 
+            Style::default().fg(Color::Blue) 
         });
 
     let mut collection_items = Vec::new();
-    
-    // For now, always show collections on top, history on bottom? Or just mix them? 
-    // Let's stick to Collections for now, but if active_env is not None, maybe show variables?
-    // Actually, Prompt asked for "Request History". 
-    // Let's create a dedicated simplified view for now: "Collections" on top half, "History" on bottom half?
-    // Or just append History to the list?
-    // Let's append History as a separate section.
     
     // 1. Collections
     collection_items.push(ListItem::new(Span::styled("--- Collections ---", Style::default().add_modifier(Modifier::BOLD))));
@@ -118,6 +107,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
     
     // 2. History
     if !app.request_history.is_empty() {
+        collection_items.push(ListItem::new(Span::raw(" ")));
         collection_items.push(ListItem::new(Span::styled("--- History ---", Style::default().add_modifier(Modifier::BOLD))));
         for log in &app.request_history {
             collection_items.push(ListItem::new(log.clone()));
@@ -131,104 +121,112 @@ pub fn render(f: &mut Frame, app: &mut App) {
     
     f.render_stateful_widget(collection_list, chunks[0], &mut app.collection_state);
 
-    // ... (URL Bar Rendering lines 101-115, unmodified) ...
-    // --- URL BAR (with dynamic styling) ---
-    let url_style = match app.input_mode {
-        InputMode::Editing => Style::default().fg(Color::Yellow),
-        _ => Style::default(),
+    // --- URL BAR ---
+    let url_border_color = match app.input_mode {
+        InputMode::Editing => Color::Yellow,
+        InputMode::Search => Color::Magenta,
+        _ => Color::Blue, // Standard Blue
     };
     
-    // Method Color
     let method_color = match app.method.as_str() {
-        "GET" => Color::Green,
-        "POST" => Color::Yellow,
-        "PUT" => Color::Blue,
-        "DELETE" => Color::Red,
-        _ => Color::White,
+        "GET" => Color::Green, "POST" => Color::Yellow, "PUT" => Color::Blue, "DELETE" => Color::Red, _ => Color::White,
     };
 
-    let url_text = Span::raw(app.url.as_str());
-    let method_text = Span::styled(format!(" {} ", app.method), Style::default().fg(Color::Black).bg(method_color).add_modifier(Modifier::BOLD));
-    let separator = Span::raw(" ");
-
-    let url_bar = Paragraph::new(ratatui::text::Line::from(vec![method_text, separator, url_text]))
+    let method_text = Span::styled(format!(" {} ", app.method), Style::default().bg(method_color).fg(Color::Black).add_modifier(Modifier::BOLD));
+    let url_text = Span::styled(format!(" {} ", app.url), Style::default().fg(Color::White).add_modifier(Modifier::BOLD));
+    
+    let url_bar = Paragraph::new(ratatui::text::Line::from(vec![method_text, url_text]))
         .block(Block::default()
             .title(" URL (Press 'e' to edit, 'm' to cycle method, 'Enter' to fetch) ")
             .borders(Borders::ALL)
-            .border_style(url_style));
-    f.render_widget(url_bar, main_chunks[0]);
-
-    // --- REQUEST CONFIG (Tabs) ---
-    let titles = vec!["[1] Params", "[2] Headers", "[3] Body (b)", "[4] Auth"];
-    let tabs = Tabs::new(titles)
-        .block(Block::default().borders(Borders::ALL).title(" Request "))
-        .select(app.selected_tab)
-        .highlight_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
+            .border_style(Style::default().fg(url_border_color)));
     
-    // Let's resize layout in next step correctly. For now, let's just make sure method rendering is correct.
-    // Actually, I can fix the layout right here.
-    
-    let config_chunks = Layout::default()
+    // REDO LAYOUT Logic inside render (keeping the fix for visibility, but simplifying styles)
+    let right_col = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-             Constraint::Length(3), // Tabs
-             Constraint::Min(1),    // Config Content
+            Constraint::Length(3),      // URL
+            Constraint::Length(3),      // Tabs Header
+            Constraint::Length(8),      // Config Content / Body Preview
+            Constraint::Min(10),        // Response
         ])
-        .split(main_chunks[1]);
-        
-    f.render_widget(tabs, config_chunks[0]);
-    
-    // Render Tab Content
-    match app.selected_tab {
-        1 => { // Headers
-            let mut header_items: Vec<ListItem> = Vec::new();
-            if app.request_headers.is_empty() {
-                header_items.push(ListItem::new("No headers set."));
-            } else {
-                for (key, value) in &app.request_headers {
-                    header_items.push(ListItem::new(format!("{}: {}", key, value)));
-                }
-            }
-            let header_list = List::new(header_items)
-                .block(Block::default().borders(Borders::ALL).title(" Headers "));
-            f.render_widget(header_list, config_chunks[1]);
-        }
-        2 => { // Body
-             let body_preview = if app.request_body.is_empty() {
-                 "No Body. Press 'b' to open editor.".to_string()
-             } else {
-                 app.request_body.clone()
-             };
-             
-             let body_para = Paragraph::new(body_preview)
-                .block(Block::default().borders(Borders::ALL).title(" Body Content "))
-                .wrap(Wrap { trim: true });
-             f.render_widget(body_para, config_chunks[1]);
-        },
-        _ => {
-             let info = Paragraph::new("Feature coming soon...")
-                .block(Block::default().borders(Borders::ALL).title(" Info "));
-             f.render_widget(info, config_chunks[1]);
-        }
-    }
+        .split(chunks[1]);
 
-    // --- RESPONSE AREA ---
-    let status_title = if app.is_loading { 
+    // 1. URL
+    f.render_widget(url_bar, right_col[0]);
+
+    // 2. Tabs
+    let titles = vec![
+        " [1] Params ", " [2] Headers ", " [3] Body (b) ", " [4] Auth "
+    ];
+    let tabs = Tabs::new(titles)
+        .block(Block::default().borders(Borders::BOTTOM))
+        .select(app.selected_tab)
+        .highlight_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
+    f.render_widget(tabs, right_col[1]);
+    
+    // 3. Config Content
+    let config_block = Block::default()
+        .borders(Borders::ALL)
+        .border_style(Style::default().fg(Color::Blue));
+        
+    match app.selected_tab {
+        0 => { // Params
+             let info = Paragraph::new("Query Parameters currently must be edited directly in the URL bar above.\n\nTip: Press 'e' to edit the URL.")
+                .block(config_block.title(" Params "))
+                .wrap(Wrap{trim:true});
+             f.render_widget(info, right_col[2]);
+        },
+        1 => { // Headers
+            let headers: Vec<ListItem> = app.request_headers.iter()
+                .map(|(k,v)| ListItem::new(format!("{}: {}", k, v))).collect();
+            let list = List::new(headers).block(config_block.title(" Headers "));
+            f.render_widget(list, right_col[2]);
+        },
+        2 => { // Body
+             let body_txt = if app.request_body.is_empty() { "No Body. Press 'b' to open editor." } else { &app.request_body };
+             let para = Paragraph::new(body_txt).block(config_block.title(" Body Preview ")).wrap(Wrap{trim:true});
+             f.render_widget(para, right_col[2]);
+        },
+        3 => { // Auth
+             let info = Paragraph::new("Authentication helpers are coming soon.\n\nPlease use the [2] Headers tab to manually set 'Authorization'.\n\nShortcut: Press 'H' to edit headers as JSON.")
+                .block(config_block.title(" Auth "))
+                .wrap(Wrap{trim:true});
+             f.render_widget(info, right_col[2]);
+        },
+        _ => {}
+    };
+
+    // 4. Response Area
+    let status_bar_text = if app.is_loading { 
         " Fetching... ".to_string() 
     } else {
-        match app.latency {
-            Some(ms) => format!(" Response ({}ms) ", ms),
-            None => " Response ".to_string(),
+        match (app.status_code, app.latency) {
+            (Some(code), Some(ms)) => format!(" Status: {} | Time: {}ms ", code, ms),
+            (Some(code), None) => format!(" Status: {} ", code),
+            _ => " Response ".to_string(),
         }
     };
     
-    // Search Bar Overlay (bottom of response or subtitle)
-    let block_title = if app.input_mode == InputMode::Search {
-        format!("{} [Search: {}] ", status_title, app.search_query)
-    } else if !app.search_query.is_empty() {
-        format!("{} [Filter: {}] ", status_title, app.search_query)
+    // Status Color Logic
+    let status_style = if let Some(code) = app.status_code {
+        if code >= 200 && code < 300 {
+            Style::default().fg(Color::Green)
+        } else if code >= 400 {
+            Style::default().fg(Color::Red)
+        } else {
+            Style::default().fg(Color::Yellow)
+        }
     } else {
-        status_title
+        Style::default().fg(Color::Blue) // Default border color
+    };
+    
+    let block_title = if app.input_mode == InputMode::Search {
+        format!("{} [Search: {}] ", status_bar_text, app.search_query)
+    } else if !app.search_query.is_empty() {
+        format!("{} [Filter: {}] ", status_bar_text, app.search_query)
+    } else {
+        status_bar_text
     };
 
     if let Some(tree) = &app.response_json {
@@ -238,36 +236,67 @@ pub fn render(f: &mut Frame, app: &mut App) {
             .block(Block::default()
                 .title(block_title)
                 .borders(Borders::ALL)
-                .border_style(if app.input_mode == InputMode::Search {
-                     Style::default().fg(Color::Magenta) 
-                } else {
-                     Style::default().fg(Color::Green)
-                }))
+                .border_style(status_style))
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
             .highlight_symbol(">> ");
-        f.render_stateful_widget(list, main_chunks[2], &mut app.json_list_state);
+        f.render_stateful_widget(list, right_col[3], &mut app.json_list_state);
     } else {
-        let response_text = app.response.as_deref().unwrap_or("No data yet. Press Enter to send request.");
-        
-        let response_area = Paragraph::new(response_text)
+         let content = app.response.as_deref().unwrap_or("No data yet. Press Enter to send request.");
+         let para = Paragraph::new(content)
             .block(Block::default()
                 .title(block_title)
                 .borders(Borders::ALL)
-                .border_style(Style::default().fg(Color::Green)))
-            .wrap(Wrap { trim: true });
-        f.render_widget(response_area, main_chunks[2]);
+                .border_style(status_style))
+            .wrap(Wrap{trim:true});
+         f.render_widget(para, right_col[3]);
     }
-    
-    // ... (Popup Rendering - Keep existing) ...
+
+    // Popup Rendering
     if let Some(msg) = &app.popup_message {
-        let block = Block::default().title(" Notification ").borders(Borders::ALL);
         let area = centered_rect(60, 20, f.area());
-        f.render_widget(ratatui::widgets::Clear, area); // Clear background
-        
-        let para = Paragraph::new(msg.as_str())
-            .block(block)
-            .wrap(Wrap { trim: true })
-            .style(Style::default().fg(Color::White).bg(Color::Blue));
+        f.render_widget(ratatui::widgets::Clear, area); 
+        let block = Block::default().title(" Notification ").borders(Borders::ALL).style(Style::default().bg(Color::Blue).fg(Color::White));
+        let para = Paragraph::new(msg.as_str()).block(block).wrap(Wrap { trim: true }).alignment(ratatui::layout::Alignment::Center);
+        f.render_widget(para, area);
+    }
+
+    // Help Popup (Clean style)
+    if app.show_help {
+        let area = centered_rect(60, 60, f.area());
+        f.render_widget(ratatui::widgets::Clear, area);
+        let block = Block::default()
+            .title(" Help (Press '?' to close) ")
+            .borders(Borders::ALL)
+            .style(Style::default().bg(Color::DarkGray).fg(Color::White));
+            
+        let help_text = vec![
+            "General:",
+            "  q          Quit",
+            "  ?          Toggle Help",
+            "  Ctrl+h     Focus Sidebar / Main",
+            "  Ctrl+e     Switch Environment",
+            "",
+            "Navigation:",
+            "  j / k      Move Up / Down",
+            "  h / l      Collapse / Expand JSON",
+            "  Tab        Cycle Tabs (Params, Headers, Body, Auth)",
+            "",
+            "Request:",
+            "  e          Edit URL",
+            "  m          Cycle Method (GET, POST, ...)",
+            "  b          Edit Body (External Editor)",
+            "  H          Edit Headers (External Editor)",
+            "  s          Save Request (to saved.hcl)",
+            "  Enter      Send Request",
+            "",
+            "Tools:",
+            "  /          Search / Filter JSON Response",
+            "  c          Copy as Curl",
+        ].join("\n");
+
+        let para = Paragraph::new(help_text)
+             .block(block)
+             .style(Style::default().fg(Color::White));
         f.render_widget(para, area);
     }
 }

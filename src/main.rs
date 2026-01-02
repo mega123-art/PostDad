@@ -39,7 +39,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut app = App::new();
 
     loop {
-        if app.should_open_editor {
+        if app.should_open_editor() {
             // 1. Suspend TUI
             disable_raw_mode()?;
             execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
@@ -52,8 +52,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 e
             } else {
                 if cfg!(target_os = "windows") {
-                    // Try 'code --wait' (VS Code) first, then 'notepad'
-                    // We can't easily check if code is in PATH without running it, so let's default to notepad if EDITOR not set
                     "notepad".to_string()
                 } else {
                     "nano".to_string()
@@ -61,15 +59,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
             
             let mut file_path = std::env::temp_dir();
-            file_path.push("postdad_body.json");
+            // Determine filename based on mode
+            let filename = if app.editor_mode == crate::app::EditorMode::Headers {
+                "postdad_headers.json" 
+            } else {
+                "postdad_body.json" 
+            };
+            file_path.push(filename);
             
-            // write current body to file
-            std::fs::write(&file_path, &app.request_body)?;
+            // write current content to file
+            if app.editor_mode == crate::app::EditorMode::Headers {
+                let json = serde_json::to_string_pretty(&app.request_headers)?;
+                std::fs::write(&file_path, json)?;
+            } else {
+                std::fs::write(&file_path, &app.request_body)?;
+            }
 
-            // On Windows, if using 'code', shell execution might be needed? 
-            // process::Command works fine for executables.
-            // If user set EDITOR="code --wait", we need to split arguments
-            
             let mut parts = editor_cmd.split_whitespace();
             let command = parts.next().unwrap_or("notepad");
             let args: Vec<&str> = parts.collect();
@@ -83,16 +88,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             if let Ok(s) = status {
                 if s.success() {
                     if let Ok(content) = std::fs::read_to_string(&file_path) {
-                         app.request_body = content;
+                         if app.editor_mode == crate::app::EditorMode::Headers {
+                             // Try parse JSON
+                             if let Ok(headers) = serde_json::from_str::<std::collections::HashMap<String, String>>(&content) {
+                                 app.request_headers = headers;
+                             }
+                         } else {
+                             app.request_body = content;
+                         }
                     }
                 }
             }
             
-            // cleanup temp?
-            // std::fs::remove_file(file_path)?;
-
             // 4. Resume TUI
-            app.should_open_editor = false;
+            app.editor_mode = crate::app::EditorMode::None;
             enable_raw_mode()?;
             execute!(terminal.backend_mut(), EnterAlternateScreen, EnableMouseCapture)?;
             terminal.hide_cursor()?;
@@ -104,7 +113,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // 4. Handle Background Messages (Did the API respond?)
         while let Ok(event) = ui_rx.try_recv() {
             match event {
-                NetworkEvent::GotResponse(text, duration) => {
+                NetworkEvent::GotResponse(text, status, duration) => {
                     // Try to parse as JSON for the explorer
                     if let Ok(val) = serde_json::from_str::<Value>(&text) {
                         let root = crate::app::JsonEntry::from_value("root".to_string(), &val, 0);
@@ -116,6 +125,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                     app.response = Some(text);
                     app.latency = Some(duration);
+                    app.status_code = Some(status);
                     app.is_loading = false;
                     
                     // Log to history needs Method / URL. We might need to store "Last Request" in App to do this cleanly
@@ -146,6 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let _ = ui_tx.send(NetworkEvent::RunRequest { 
                         url: processed_url,
                         method: app.method.clone(),
+                        headers: app.request_headers.clone(),
                         body
                     }).await;
                     app.is_loading = true;

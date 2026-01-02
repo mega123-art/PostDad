@@ -19,57 +19,86 @@ pub struct Collection {
 }
 
 impl Collection {
-    pub fn load_from_dir(path: &str) -> std::io::Result<Vec<Collection>> {
-        let mut collections = Vec::new();
-        let path = Path::new(path);
-
+    pub fn load_from_dir(dir: &str) -> std::io::Result<Vec<Collection>> {
+        let path = Path::new(dir);
         if !path.exists() {
             fs::create_dir_all(path)?;
-            // Create a default example
+            // Create a default example if empty
             let default_hcl = r#"
 request "GitHub Zen" {
-  url = "https://api.github.com/zen"
   method = "GET"
-  headers = {
-    "User-Agent" = "Postdad"
-  }
+  url = "https://api.github.com/zen"
 }
 
 request "JSONPlaceholder" {
-  url = "https://jsonplaceholder.typicode.com/todos/1"
   method = "GET"
+  url = "https://jsonplaceholder.typicode.com/posts/1"
 }
 "#;
             fs::write(path.join("default.hcl"), default_hcl)?;
         }
 
+        let mut collections = Vec::new();
+        
         for entry in fs::read_dir(path)? {
             let entry = entry?;
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("hcl") {
-                let content = fs::read_to_string(&path)?;
-                let body: Body = hcl::from_str(&content).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-                
-                let mut requests = HashMap::new();
-                
-                // Parse the HCL body manually to extract "request" blocks
-                for block in body.blocks() {
-                    if block.identifier() == "request" {
-                        if let Some(label) = block.labels().first() {
-                            let config: RequestConfig = hcl::from_body(block.body().clone())
-                                .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-                            requests.insert(label.as_str().to_string(), config);
-                        }
-                    }
-                }
-
-                let name = path.file_stem().unwrap().to_string_lossy().to_string();
-                collections.push(Collection { name, requests });
+                 let content = fs::read_to_string(&path)?;
+                 // Basic parsing logic:
+                 // We rely on hcl-rs to parse the body
+                 let body: Body = hcl::from_str(&content).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+                 
+                 let mut requests = HashMap::new();
+                 
+                 for block in body.blocks() {
+                     if block.identifier() == "request" {
+                         if let Some(label) = block.labels().first() {
+                             let config: RequestConfig = hcl::from_body(block.body().clone())
+                                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?; 
+                             requests.insert(label.as_str().to_string(), config);
+                         }
+                     }
+                 }
+                 
+                 let name = path.file_stem().unwrap().to_string_lossy().to_string();
+                 collections.push(Collection { name, requests });
             }
         }
         
-        // Sort collections by name for consistency
+        // Sort by name
         collections.sort_by(|a, b| a.name.cmp(&b.name));
+
         Ok(collections)
+    }
+    
+    // Quick append save
+    pub fn save_to_file(name: &str, method: &str, url: &str, body: &str, _headers: &HashMap<String, String>) -> std::io::Result<()> {
+         // Appends to collections/saved.hcl
+         let path = Path::new("collections/saved.hcl");
+         
+         let body_attr = if body.trim().is_empty() { 
+             "".to_string() 
+         } else {
+             // Basic HCL escaping for heredoc would be better, but simple string for now
+             format!("\n  body = {:#?}", body) 
+         };
+
+         let entry = format!(
+r#"
+request "{}" {{
+  method = "{}"
+  url = "{}"{}
+}}
+"#, name, method, url, body_attr);
+
+         use std::io::Write;
+         let mut file = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)?;
+            
+         file.write_all(entry.as_bytes())?;
+         Ok(())
     }
 }

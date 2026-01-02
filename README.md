@@ -62,6 +62,10 @@ postdad
 - [x] Request Body Editor (`b` key -> `$EDITOR`)
    - *Pro Tip*: For VS Code integration, run `export EDITOR="code --wait"` (Mac/Linux) or set `$env:EDITOR="code --wait"` (PowerShell).
 - [x] Method Cycling (`m` key)
+- [x] Status Codes (Color-coded)
+- [x] Help Screen (`?` key)
+- [x] Header Editing (`H` key -> `$EDITOR` as JSON)
+- [x] Persistence (`s` key -> `saved.hcl`)
 
 ## License
 
