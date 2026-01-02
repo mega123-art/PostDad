@@ -16,7 +16,7 @@ impl Environment {
         let mut envs = Vec::new();
 
         if !path.exists() {
-            // Create default environments.hcl
+            
             let default_hcl = r#"
 env "dev" {
   base_url = "https://jsonplaceholder.typicode.com"
@@ -48,7 +48,7 @@ env "prod" {
             }
         }
         
-        // Add a "No Env" default
+        
         envs.insert(0, Environment {
             name: "None".to_string(),
             variables: HashMap::new(),

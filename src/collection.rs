@@ -23,7 +23,7 @@ impl Collection {
         let path = Path::new(dir);
         if !path.exists() {
             fs::create_dir_all(path)?;
-            // Create a default example if empty
+            
             let default_hcl = r#"
 request "GitHub Zen" {
   method = "GET"
@@ -45,8 +45,8 @@ request "JSONPlaceholder" {
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("hcl") {
                  let content = fs::read_to_string(&path)?;
-                 // Basic parsing logic:
-                 // We rely on hcl-rs to parse the body
+                 
+                 
                  let body: Body = hcl::from_str(&content).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
                  
                  let mut requests = HashMap::new();
@@ -66,21 +66,21 @@ request "JSONPlaceholder" {
             }
         }
         
-        // Sort by name
+        
         collections.sort_by(|a, b| a.name.cmp(&b.name));
 
         Ok(collections)
     }
     
-    // Quick append save
+    
     pub fn save_to_file(name: &str, method: &str, url: &str, body: &str, _headers: &HashMap<String, String>) -> std::io::Result<()> {
-         // Appends to collections/saved.hcl
+         
          let path = Path::new("collections/saved.hcl");
          
          let body_attr = if body.trim().is_empty() { 
              "".to_string() 
          } else {
-             // Basic HCL escaping for heredoc would be better, but simple string for now
+             
              format!("\n  body = {:#?}", body) 
          };
 

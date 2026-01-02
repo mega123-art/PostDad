@@ -28,17 +28,17 @@ pub async fn handle_network(
                 let req_method = Method::from_str(&method).unwrap_or(Method::GET);
                 let mut req_builder = client.request(req_method, &url);
                 
-                // Add Headers
+                
                 for (k, v) in headers {
                     req_builder = req_builder.header(k, v);
                 }
 
                 if let Some(b) = body {
                     req_builder = req_builder.body(b);
-                    // If content-type not set in headers, maybe default? 
-                    // reqwest usually handles it if needed, or user adds it via H key.
-                    // Let's rely on user headers, but default to json if body exists and no content-type?
-                    // Nah, raw control is better for Postdad.
+                    
+                    
+                    
+                    
                 }
 
                 let res = req_builder.send().await;

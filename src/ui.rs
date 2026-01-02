@@ -19,10 +19,10 @@ fn get_style_for_value(v: &serde_json::Value) -> Style {
 
 fn flatten_tree(entries: &[JsonEntry], list_items: &mut Vec<ListItem<'static>>, filter: &str) {
     for entry in entries {
-        // Filter Logic:
-        // If filter is empty, show everything (respecting expansion).
-        // If filter is NOT empty, show item ONLY if key contains filter.
-        // (Advanced: Show if children match? For v1, simple key filtering)
+        
+        
+        
+        
         
         let matches = if filter.is_empty() {
             true
@@ -40,9 +40,9 @@ fn flatten_tree(entries: &[JsonEntry], list_items: &mut Vec<ListItem<'static>>, 
                 "▶" 
             };
 
-            // Shorten value for display
+            
             let val_str = match &entry.value {
-                 serde_json::Value::String(s) => format!("\"{}\"", s), // naive quoting
+                 serde_json::Value::String(s) => format!("\"{}\"", s), 
                  v => format!("{}", v),
             };
             
@@ -52,10 +52,10 @@ fn flatten_tree(entries: &[JsonEntry], list_items: &mut Vec<ListItem<'static>>, 
             list_items.push(item);
         }
 
-        // Recursion logic with filter
-        // If filter is active, we might want to auto-expand or just search deep
-        // For now, respect expansion unless filtering, but if filtering, maybe search all?
-        // Let's stick to visible structure for now to keep it "tree-like"
+        
+        
+        
+        
         if entry.is_expanded {
             flatten_tree(&entry.children, list_items, filter);
         }
@@ -63,24 +63,24 @@ fn flatten_tree(entries: &[JsonEntry], list_items: &mut Vec<ListItem<'static>>, 
 }
 
 pub fn render(f: &mut Frame, app: &mut App) {
-    // 1. Define the Main Areas
+    
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([
-            Constraint::Percentage(20), // Sidebar
-            Constraint::Percentage(80), // Main Content
+            Constraint::Percentage(20), 
+            Constraint::Percentage(80), 
         ])
         .split(f.area());
 
-    let main_chunks = Layout::default()
+    let _main_chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),      // Header/Tabs (Keep structure simple)
-            Constraint::Min(10),        // Content
+            Constraint::Length(3),      
+            Constraint::Min(10),        
         ])
         .split(chunks[1]);
 
-    // --- SIDEBAR ---
+    
     let sidebar_title = format!(" Postdad (Env: {}) ", app.get_active_env().name);
     let sidebar_block = Block::default()
         .title(sidebar_title)
@@ -93,7 +93,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
     let mut collection_items = Vec::new();
     
-    // 1. Collections
+    
     collection_items.push(ListItem::new(Span::styled("--- Collections ---", Style::default().add_modifier(Modifier::BOLD))));
     for col in &app.collections {
         let mut keys: Vec<&String> = col.requests.keys().collect();
@@ -105,7 +105,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         }
     }
     
-    // 2. History
+    
     if !app.request_history.is_empty() {
         collection_items.push(ListItem::new(Span::raw(" ")));
         collection_items.push(ListItem::new(Span::styled("--- History ---", Style::default().add_modifier(Modifier::BOLD))));
@@ -121,11 +121,11 @@ pub fn render(f: &mut Frame, app: &mut App) {
     
     f.render_stateful_widget(collection_list, chunks[0], &mut app.collection_state);
 
-    // --- URL BAR ---
+    
     let url_border_color = match app.input_mode {
         InputMode::Editing => Color::Yellow,
         InputMode::Search => Color::Magenta,
-        _ => Color::Blue, // Standard Blue
+        _ => Color::Blue, 
     };
     
     let method_color = match app.method.as_str() {
@@ -141,21 +141,21 @@ pub fn render(f: &mut Frame, app: &mut App) {
             .borders(Borders::ALL)
             .border_style(Style::default().fg(url_border_color)));
     
-    // REDO LAYOUT Logic inside render (keeping the fix for visibility, but simplifying styles)
+    
     let right_col = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(3),      // URL
-            Constraint::Length(3),      // Tabs Header
-            Constraint::Length(8),      // Config Content / Body Preview
-            Constraint::Min(10),        // Response
+            Constraint::Length(3),      
+            Constraint::Length(3),      
+            Constraint::Length(8),      
+            Constraint::Min(10),        
         ])
         .split(chunks[1]);
 
-    // 1. URL
+    
     f.render_widget(url_bar, right_col[0]);
 
-    // 2. Tabs
+    
     let titles = vec![
         " [1] Params ", " [2] Headers ", " [3] Body (b) ", " [4] Auth "
     ];
@@ -165,30 +165,30 @@ pub fn render(f: &mut Frame, app: &mut App) {
         .highlight_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
     f.render_widget(tabs, right_col[1]);
     
-    // 3. Config Content
+    
     let config_block = Block::default()
         .borders(Borders::ALL)
         .border_style(Style::default().fg(Color::Blue));
         
     match app.selected_tab {
-        0 => { // Params
+        0 => { 
              let info = Paragraph::new("Query Parameters currently must be edited directly in the URL bar above.\n\nTip: Press 'e' to edit the URL.")
                 .block(config_block.title(" Params "))
                 .wrap(Wrap{trim:true});
              f.render_widget(info, right_col[2]);
         },
-        1 => { // Headers
+        1 => { 
             let headers: Vec<ListItem> = app.request_headers.iter()
                 .map(|(k,v)| ListItem::new(format!("{}: {}", k, v))).collect();
             let list = List::new(headers).block(config_block.title(" Headers "));
             f.render_widget(list, right_col[2]);
         },
-        2 => { // Body
+        2 => { 
              let body_txt = if app.request_body.is_empty() { "No Body. Press 'b' to open editor." } else { &app.request_body };
              let para = Paragraph::new(body_txt).block(config_block.title(" Body Preview ")).wrap(Wrap{trim:true});
              f.render_widget(para, right_col[2]);
         },
-        3 => { // Auth
+        3 => { 
              let info = Paragraph::new("Authentication helpers are coming soon.\n\nPlease use the [2] Headers tab to manually set 'Authorization'.\n\nShortcut: Press 'H' to edit headers as JSON.")
                 .block(config_block.title(" Auth "))
                 .wrap(Wrap{trim:true});
@@ -197,7 +197,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         _ => {}
     };
 
-    // 4. Response Area
+    
     let status_bar_text = if app.is_loading { 
         " Fetching... ".to_string() 
     } else {
@@ -208,7 +208,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         }
     };
     
-    // Status Color Logic
+    
     let status_style = if let Some(code) = app.status_code {
         if code >= 200 && code < 300 {
             Style::default().fg(Color::Green)
@@ -218,7 +218,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             Style::default().fg(Color::Yellow)
         }
     } else {
-        Style::default().fg(Color::Blue) // Default border color
+        Style::default().fg(Color::Blue) 
     };
     
     let block_title = if app.input_mode == InputMode::Search {
@@ -251,7 +251,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
          f.render_widget(para, right_col[3]);
     }
 
-    // Popup Rendering
+    
     if let Some(msg) = &app.popup_message {
         let area = centered_rect(60, 20, f.area());
         f.render_widget(ratatui::widgets::Clear, area); 
@@ -260,7 +260,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         f.render_widget(para, area);
     }
 
-    // Help Popup (Clean style)
+    
     if app.show_help {
         let area = centered_rect(60, 60, f.area());
         f.render_widget(ratatui::widgets::Clear, area);

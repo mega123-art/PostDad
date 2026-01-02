@@ -58,29 +58,23 @@ pub struct App {
     pub json_list_state: ListState,
     pub popup_message: Option<String>,
     
-    // Collections
     pub collections: Vec<Collection>,
     pub collection_state: ListState,
-    pub active_sidebar: bool, // true if focusing on sidebar
+    pub active_sidebar: bool, 
 
-    // New features
     pub latency: Option<u128>,
-    pub status_code: Option<u16>, // New Status Code
+    pub status_code: Option<u16>, 
     pub search_query: String,
     
-    // Environment
     pub environments: Vec<Environment>,
     pub selected_env_index: usize,
 
-    // History
     pub request_history: Vec<String>,
     
-    // Body & Editing
     pub request_body: String,
     pub editor_mode: EditorMode, // Replaces should_open_editor boolean
     pub request_headers: std::collections::HashMap<String, String>,
     
-    // Help
     pub show_help: bool,
 }
 
@@ -174,7 +168,6 @@ impl App {
     }
 
     pub fn save_current_request(&mut self) {
-        // Save to "saved.hcl" with a timestamp-based name
         let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
         let name = format!("Saved Request {}", timestamp);
         
@@ -186,7 +179,6 @@ impl App {
     }
 
 
-    // Collection Navigation helpers
     pub fn next_collection_item(&mut self) {
         let total_items = self.flattened_count();
         if total_items == 0 { return; }
@@ -241,13 +233,9 @@ impl App {
                      self.popup_message = Some(format!("Loaded: {} {}", self.method, self.url));
                  }
             } else if idx > collection_count + 1 {
-                 // It's a history item
                  let history_idx = idx - (collection_count + 2); // 2 headers
                  if history_idx < self.request_history.len() {
-                      // Parse the log string back... or just notify?
-                      // "[GET] url (ms)"
                       if let Some(log) = self.request_history.get(history_idx) {
-                          // Naive parsing
                           let parts: Vec<&str> = log.split_whitespace().collect();
                           if parts.len() >= 2 {
                               self.method = parts[0].trim_matches(|c| c == '[' || c == ']').to_string();
@@ -263,17 +251,14 @@ impl App {
     fn flattened_count(&self) -> usize {
         let cols = self.flattened_collection_only_count();
         let hist = if self.request_history.is_empty() { 0 } else { self.request_history.len() + 1 };
-        cols + 1 + hist // +1 for "Collections" header
+        cols + 1 + hist 
     }
 
     fn flattened_collection_only_count(&self) -> usize {
         self.collections.iter().map(|c| c.requests.len()).sum()
     }
 
-    // Mapping visual list index (ignoring headers) to actual requests is tricky without a flat map.
-    // Let's implement a simpler "find" logic
     pub fn get_request_at_visual_index(&self, visual_index: usize) -> Option<(&String, &crate::collection::RequestConfig)> {
-        // visual_index 0 is Header
         let mut current = 1; 
         for col in &self.collections {
             let mut keys: Vec<&String> = col.requests.keys().collect();
@@ -307,7 +292,6 @@ impl App {
         }
     }
 
-    // Helper to traverse the tree and find the node at the visual index
     pub fn toggle_current_selection(&mut self) {
         if let Some(selected_idx) = self.json_list_state.selected() {
             if let Some(entries) = &mut self.response_json {
@@ -319,7 +303,6 @@ impl App {
         }
     }
 
-    // Explicitly expand or collapse (for Left/Right keys)
     pub fn set_expanded_current_selection(&mut self, expanded: bool) {
          if let Some(selected_idx) = self.json_list_state.selected() {
             if let Some(entries) = &mut self.response_json {
@@ -347,7 +330,6 @@ impl App {
         None
     }
 
-    // Determine total visible items to clamp selection
     pub fn calculate_visible_item_count(&self) -> usize {
         if let Some(entries) = &self.response_json {
             Self::count_visible(entries)
