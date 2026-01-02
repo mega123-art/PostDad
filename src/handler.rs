@@ -15,6 +15,10 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 }
                 return; 
             }
+            KeyCode::Char('e') => {
+                app.next_env();
+                return;
+            }
             _ => {}
         }
     }
@@ -71,6 +75,10 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             KeyCode::Esc => {
                 app.popup_message = None;
             }
+            KeyCode::Char('/') => {
+                app.input_mode = InputMode::Search;
+                app.search_query.clear();
+            }
             _ => {}
         },
         InputMode::Editing => match key_event.code {
@@ -85,6 +93,18 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             }
             KeyCode::Esc => {
                 app.input_mode = InputMode::Normal;
+            }
+            _ => {}
+        },
+        InputMode::Search => match key_event.code {
+            KeyCode::Enter | KeyCode::Esc => {
+                app.input_mode = InputMode::Normal;
+            }
+            KeyCode::Char(c) => {
+                app.search_query.push(c);
+            }
+            KeyCode::Backspace => {
+                app.search_query.pop();
             }
             _ => {}
         },

@@ -56,7 +56,9 @@ postdad
 - [x] JSON Response Explorer (Interactive)
 - [x] Collection Management (`.hcl` support)
 - [x] "Dad's Directions" (Copy as Curl) (`c` key)
-- [ ] Environment Variables
+- [x] Response Timing (ms precision)
+- [x] Search / Filter JSON (`/` key)
+- [x] Environment Variables
 
 ## License
 

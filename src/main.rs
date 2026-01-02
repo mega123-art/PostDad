@@ -16,6 +16,7 @@ mod ui;
 mod handler;
 mod network;
 mod collection;
+mod environment;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -43,7 +44,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // 4. Handle Background Messages (Did the API respond?)
         while let Ok(event) = ui_rx.try_recv() {
             match event {
-                NetworkEvent::GotResponse(text) => {
+                NetworkEvent::GotResponse(text, duration) => {
                     // Try to parse as JSON for the explorer
                     if let Ok(val) = serde_json::from_str::<Value>(&text) {
                         let root = crate::app::JsonEntry::from_value("root".to_string(), &val, 0);
@@ -54,7 +55,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
 
                     app.response = Some(text);
+                    app.latency = Some(duration);
                     app.is_loading = false;
+                    
+                    // Log to history needs Method / URL. We might need to store "Last Request" in App to do this cleanly
+                    // For now, let's just log what we have. It's best if NetworkEvent returned the URL too
+                    app.add_history(app.method.clone(), app.process_url(), duration);
                 }
                 NetworkEvent::Error(e) => {
                     app.response = Some(format!("Error: {}", e));
@@ -74,7 +80,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // If user presses Enter in Normal Mode, send request
                 if app.input_mode == InputMode::Normal && key.code == KeyCode::Enter {
-                    let _ = ui_tx.send(NetworkEvent::RunRequest(app.url.clone())).await;
+                    let processed_url = app.process_url();
+                    let _ = ui_tx.send(NetworkEvent::RunRequest(processed_url.clone())).await;
                     app.is_loading = true;
                 }
                 // Handle navigation/typing

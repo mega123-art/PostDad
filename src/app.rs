@@ -4,6 +4,7 @@ use serde_json::Value;
 pub enum InputMode {
     Normal,
     Editing,
+    Search,
 }
 
 #[derive(Clone, Debug)]
@@ -54,15 +55,28 @@ pub struct App {
     pub collections: Vec<Collection>,
     pub collection_state: ListState,
     pub active_sidebar: bool, // true if focusing on sidebar
+
+    // New features
+    pub latency: Option<u128>,
+    pub search_query: String,
+    
+    // Environment
+    pub environments: Vec<Environment>,
+    pub selected_env_index: usize,
+
+    // History
+    pub request_history: Vec<String>, // Simple string log for v1
 }
 
 use ratatui::widgets::ListState;
 use arboard::Clipboard;
 use crate::collection::Collection;
+use crate::environment::Environment;
 
 impl App {
     pub fn new() -> App {
         let collections = Collection::load_from_dir("collections").unwrap_or_default();
+        let environments = Environment::load_from_file("environments.hcl").unwrap_or_default();
         
         App {
             url: String::from("https://api.github.com/zen"),
@@ -78,18 +92,49 @@ impl App {
             collections,
             collection_state: ListState::default(),
             active_sidebar: false,
+            
+            latency: None,
+            search_query: String::new(),
+            
+            environments,
+            selected_env_index: 0,
+            
+            request_history: Vec::new(),
         }
     }
 
+    pub fn get_active_env(&self) -> &Environment {
+        &self.environments[self.selected_env_index]
+    }
+
+    pub fn next_env(&mut self) {
+        if self.environments.is_empty() { return; }
+        self.selected_env_index = (self.selected_env_index + 1) % self.environments.len();
+    }
+
+    pub fn process_url(&self) -> String {
+        let mut final_url = self.url.clone();
+        let env = self.get_active_env();
+        
+        for (key, val) in &env.variables {
+            let placeholder = format!("{{{{{}}}}}", key); // {{key}}
+            final_url = final_url.replace(&placeholder, val);
+        }
+        final_url
+    }
+
+    pub fn add_history(&mut self, method: String, url: String, duration: u128) {
+        let log = format!("[{}] {} ({}ms)", method, url, duration);
+        self.request_history.insert(0, log);
+        if self.request_history.len() > 50 {
+            self.request_history.pop();
+        }
+    }
+
+
     // Collection Navigation helpers
     pub fn next_collection_item(&mut self) {
-        if self.collections.is_empty() { return; }
-        
-        // Flatten the list for navigation: Collection Header -> Requests -> Next Header
-        // For simplicity v1: Just list all requests in a single flat list "Collection::Request"
-        
-        // Actually, let's just count total requests across all collections for the index
-        let total_items = self.flattened_request_count();
+        let total_items = self.flattened_count();
         if total_items == 0 { return; }
 
         let i = match self.collection_state.selected() {
@@ -106,7 +151,7 @@ impl App {
     }
 
     pub fn previous_collection_item(&mut self) {
-        let total_items = self.flattened_request_count();
+        let total_items = self.flattened_count();
         if total_items == 0 { return; }
 
         let i = match self.collection_state.selected() {
@@ -122,39 +167,68 @@ impl App {
         self.collection_state.select(Some(i));
     }
 
+    // This handles both requests AND history for selection
     pub fn load_selected_request(&mut self) {
         if let Some(idx) = self.collection_state.selected() {
-            let req_data = if let Some((_, request)) = self.get_request_at_index(idx) {
-                Some((request.url.clone(), request.method.clone()))
-            } else {
-                None
-            };
+            let collection_count = self.flattened_collection_only_count();
+            
+            // Adjust index to skip the "--- Collections ---" header
+            if idx > 0 && idx <= collection_count {
+                 // It's a collection item
+                 let req_data = if let Some((_, request)) = self.get_request_at_visual_index(idx) {
+                     Some((request.url.clone(), request.method.clone()))
+                 } else {
+                     None
+                 };
 
-            if let Some((url, method)) = req_data {
-                self.url = url;
-                self.method = method.clone();
-                self.popup_message = Some(format!("Loaded: {} {}", method, self.url));
+                 if let Some((url, method)) = req_data {
+                     self.url = url;
+                     self.method = method;
+                     self.popup_message = Some(format!("Loaded: {} {}", self.method, self.url));
+                 }
+            } else if idx > collection_count + 1 {
+                 // It's a history item
+                 let history_idx = idx - (collection_count + 2); // 2 headers
+                 if history_idx < self.request_history.len() {
+                      // Parse the log string back... or just notify?
+                      // "[GET] url (ms)"
+                      if let Some(log) = self.request_history.get(history_idx) {
+                          // Naive parsing
+                          let parts: Vec<&str> = log.split_whitespace().collect();
+                          if parts.len() >= 2 {
+                              self.method = parts[0].trim_matches(|c| c == '[' || c == ']').to_string();
+                              self.url = parts[1].to_string();
+                              self.popup_message = Some("Restored from history".to_string());
+                          }
+                      }
+                 }
             }
         }
     }
 
-    fn flattened_request_count(&self) -> usize {
+    fn flattened_count(&self) -> usize {
+        let cols = self.flattened_collection_only_count();
+        let hist = if self.request_history.is_empty() { 0 } else { self.request_history.len() + 1 };
+        cols + 1 + hist // +1 for "Collections" header
+    }
+
+    fn flattened_collection_only_count(&self) -> usize {
         self.collections.iter().map(|c| c.requests.len()).sum()
     }
 
-    // Helper to map a flat index back to a specific request
-    pub fn get_request_at_index(&self, index: usize) -> Option<(&String, &crate::collection::RequestConfig)> {
-        let mut current_idx = 0;
+    // Mapping visual list index (ignoring headers) to actual requests is tricky without a flat map.
+    // Let's implement a simpler "find" logic
+    pub fn get_request_at_visual_index(&self, visual_index: usize) -> Option<(&String, &crate::collection::RequestConfig)> {
+        // visual_index 0 is Header
+        let mut current = 1; 
         for col in &self.collections {
-            // Sort requests by key to have stable order
             let mut keys: Vec<&String> = col.requests.keys().collect();
             keys.sort();
-            
             for key in keys {
-                if current_idx == index {
+                if current == visual_index {
                     return col.requests.get(key).map(|r| (key, r));
                 }
-                current_idx += 1;
+                current += 1;
             }
         }
         None
