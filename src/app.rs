@@ -65,7 +65,12 @@ pub struct App {
     pub selected_env_index: usize,
 
     // History
-    pub request_history: Vec<String>, // Simple string log for v1
+    pub request_history: Vec<String>,
+    
+    // Body & Editing
+    pub request_body: String,
+    pub should_open_editor: bool,
+    pub request_headers: std::collections::HashMap<String, String>,
 }
 
 use ratatui::widgets::ListState;
@@ -100,6 +105,10 @@ impl App {
             selected_env_index: 0,
             
             request_history: Vec::new(),
+            
+            request_body: String::new(),
+            should_open_editor: false,
+            request_headers: std::collections::HashMap::new(),
         }
     }
 
@@ -129,6 +138,17 @@ impl App {
         if self.request_history.len() > 50 {
             self.request_history.pop();
         }
+    }
+
+    pub fn cycle_method(&mut self) {
+        let methods = ["GET", "POST", "PUT", "DELETE", "PATCH"];
+        let current_pos = methods.iter().position(|&m| m == self.method).unwrap_or(0);
+        let next = (current_pos + 1) % methods.len();
+        self.method = methods[next].to_string();
+    }
+    
+    pub fn trigger_editor(&mut self) {
+        self.should_open_editor = true;
     }
 
 

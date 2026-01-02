@@ -51,6 +51,9 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             KeyCode::Tab => {
                 app.selected_tab = (app.selected_tab + 1) % 4;
             }
+            KeyCode::Char('m') => {
+                app.cycle_method();
+            }
             // Navigation
             KeyCode::Char('j') | KeyCode::Down => {
                 app.next_item();
@@ -66,7 +69,22 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 app.set_expanded_current_selection(true);
             }
             KeyCode::Char(' ') => {
-                app.toggle_current_selection();
+                 // Space also works for editor if on Body tab? No, keep it for tree. 
+                 // Let's use 'e' for editor if NOT in search/editing URL?
+                 // Wait, 'e' is for editing URL.
+                 // Let's use Enter. If selected_tab == 2 (Body), open editor.
+                 // But Enter currently sends request.
+                 // Conflict! 
+                 // Solution: 'e' focuses URL bar. 
+                 // Maybe 'b' for Body Editor?
+                 // Or stick to Enter on Body Tab, and use Ctrl+Enter to send request?
+                 // Or, if tab is Body, and user presses 'e', open editor?
+                 // Let's use 'b' for Body Edit shortcut for now, simple.
+                 app.toggle_current_selection();
+            }
+            KeyCode::Char('b') => {
+                app.selected_tab = 2; // Jump to body
+                app.trigger_editor();
             }
             KeyCode::Char('c') => {
                 let cmd = app.generate_curl_command();

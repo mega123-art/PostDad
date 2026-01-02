@@ -138,21 +138,79 @@ pub fn render(f: &mut Frame, app: &mut App) {
         _ => Style::default(),
     };
     
-    let url_bar = Paragraph::new(app.url.as_str())
+    // Method Color
+    let method_color = match app.method.as_str() {
+        "GET" => Color::Green,
+        "POST" => Color::Yellow,
+        "PUT" => Color::Blue,
+        "DELETE" => Color::Red,
+        _ => Color::White,
+    };
+
+    let url_text = Span::raw(app.url.as_str());
+    let method_text = Span::styled(format!(" {} ", app.method), Style::default().fg(Color::Black).bg(method_color).add_modifier(Modifier::BOLD));
+    let separator = Span::raw(" ");
+
+    let url_bar = Paragraph::new(ratatui::text::Line::from(vec![method_text, separator, url_text]))
         .block(Block::default()
-            .title(" URL (Press 'e' to edit, 'Enter' to fetch) ")
+            .title(" URL (Press 'e' to edit, 'm' to cycle method, 'Enter' to fetch) ")
             .borders(Borders::ALL)
             .border_style(url_style));
     f.render_widget(url_bar, main_chunks[0]);
 
-    // ... (Tabs Rendering lines 118-124, unmodified) ...
     // --- REQUEST CONFIG (Tabs) ---
-    let titles = vec!["[1] Params", "[2] Headers", "[3] Body", "[4] Auth"];
+    let titles = vec!["[1] Params", "[2] Headers", "[3] Body (b)", "[4] Auth"];
     let tabs = Tabs::new(titles)
         .block(Block::default().borders(Borders::ALL).title(" Request "))
         .select(app.selected_tab)
         .highlight_style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD));
-    f.render_widget(tabs, main_chunks[1]);
+    
+    // Let's resize layout in next step correctly. For now, let's just make sure method rendering is correct.
+    // Actually, I can fix the layout right here.
+    
+    let config_chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+             Constraint::Length(3), // Tabs
+             Constraint::Min(1),    // Config Content
+        ])
+        .split(main_chunks[1]);
+        
+    f.render_widget(tabs, config_chunks[0]);
+    
+    // Render Tab Content
+    match app.selected_tab {
+        1 => { // Headers
+            let mut header_items: Vec<ListItem> = Vec::new();
+            if app.request_headers.is_empty() {
+                header_items.push(ListItem::new("No headers set."));
+            } else {
+                for (key, value) in &app.request_headers {
+                    header_items.push(ListItem::new(format!("{}: {}", key, value)));
+                }
+            }
+            let header_list = List::new(header_items)
+                .block(Block::default().borders(Borders::ALL).title(" Headers "));
+            f.render_widget(header_list, config_chunks[1]);
+        }
+        2 => { // Body
+             let body_preview = if app.request_body.is_empty() {
+                 "No Body. Press 'b' to open editor.".to_string()
+             } else {
+                 app.request_body.clone()
+             };
+             
+             let body_para = Paragraph::new(body_preview)
+                .block(Block::default().borders(Borders::ALL).title(" Body Content "))
+                .wrap(Wrap { trim: true });
+             f.render_widget(body_para, config_chunks[1]);
+        },
+        _ => {
+             let info = Paragraph::new("Feature coming soon...")
+                .block(Block::default().borders(Borders::ALL).title(" Info "));
+             f.render_widget(info, config_chunks[1]);
+        }
+    }
 
     // --- RESPONSE AREA ---
     let status_title = if app.is_loading { 

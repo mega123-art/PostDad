@@ -59,6 +59,8 @@ postdad
 - [x] Response Timing (ms precision)
 - [x] Search / Filter JSON (`/` key)
 - [x] Environment Variables
+- [x] Request Body Editor (`b` key -> `$EDITOR`)
+- [x] Method Cycling (`m` key)
 
 ## License
 

@@ -39,6 +39,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut app = App::new();
 
     loop {
+        if app.should_open_editor {
+            // 1. Suspend TUI
+            disable_raw_mode()?;
+            execute!(terminal.backend_mut(), LeaveAlternateScreen, DisableMouseCapture)?;
+            terminal.show_cursor()?;
+
+            // 2. Open Editor
+            let editor = std::env::var("EDITOR").unwrap_or_else(|_| "nano".to_string());
+            let mut file_path = std::env::temp_dir();
+            file_path.push("postdad_body.json");
+            
+            // write current body to file
+            std::fs::write(&file_path, &app.request_body)?;
+
+            let status = std::process::Command::new(&editor)
+                .arg(&file_path)
+                .status();
+
+            // 3. Read back
+            if let Ok(s) = status {
+                if s.success() {
+                    if let Ok(content) = std::fs::read_to_string(&file_path) {
+                         app.request_body = content;
+                    }
+                }
+            }
+            
+            // cleanup temp?
+            // std::fs::remove_file(file_path)?;
+
+            // 4. Resume TUI
+            app.should_open_editor = false;
+            enable_raw_mode()?;
+            execute!(terminal.backend_mut(), EnterAlternateScreen, EnableMouseCapture)?;
+            terminal.hide_cursor()?;
+            terminal.clear()?;
+        }
+
         terminal.draw(|f| ui::render(f, &mut app))?;
 
         // 4. Handle Background Messages (Did the API respond?)
@@ -81,7 +119,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 // If user presses Enter in Normal Mode, send request
                 if app.input_mode == InputMode::Normal && key.code == KeyCode::Enter {
                     let processed_url = app.process_url();
-                    let _ = ui_tx.send(NetworkEvent::RunRequest(processed_url.clone())).await;
+                    let body = if app.request_body.trim().is_empty() { None } else { Some(app.request_body.clone()) };
+                    
+                    let _ = ui_tx.send(NetworkEvent::RunRequest { 
+                        url: processed_url,
+                        method: app.method.clone(),
+                        body
+                    }).await;
                     app.is_loading = true;
                 }
                 // Handle navigation/typing
