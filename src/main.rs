@@ -15,6 +15,7 @@ mod app;
 mod ui;
 mod handler;
 mod network;
+mod collection;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

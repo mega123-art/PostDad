@@ -54,7 +54,7 @@ postdad
 - [x] Basic TUI Engine
 - [x] Async Request Worker
 - [x] JSON Response Explorer (Interactive)
-- [ ] Collection Management (`.hcl` support)
+- [x] Collection Management (`.hcl` support)
 - [x] "Dad's Directions" (Copy as Curl) (`c` key)
 - [ ] Environment Variables
 

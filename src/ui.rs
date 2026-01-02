@@ -67,11 +67,34 @@ pub fn render(f: &mut Frame, app: &mut App) {
         .split(chunks[1]);
 
     // --- SIDEBAR ---
-    let sidebar = Block::default()
-        .title(" Collections ")
+    let sidebar_block = Block::default()
+        .title(" Collections (Ctrl+h to focus) ")
         .borders(Borders::ALL)
-        .border_style(Style::default().fg(Color::Cyan));
-    f.render_widget(sidebar, chunks[0]);
+        .border_style(if app.active_sidebar { 
+            Style::default().fg(Color::Yellow) 
+        } else { 
+            Style::default().fg(Color::Cyan) 
+        });
+
+    let mut collection_items = Vec::new();
+    for col in &app.collections {
+        // Sort requests for consistent display
+        let mut keys: Vec<&String> = col.requests.keys().collect();
+        keys.sort();
+
+        for key in keys {
+            let req = &col.requests[key];
+            let item = ListItem::new(format!("{} [{}] {}", col.name, req.method, key));
+            collection_items.push(item);
+        }
+    }
+
+    let collection_list = List::new(collection_items)
+        .block(sidebar_block)
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+        .highlight_symbol("> ");
+    
+    f.render_stateful_widget(collection_list, chunks[0], &mut app.collection_state);
 
     // --- URL BAR (with dynamic styling) ---
     let url_style = match app.input_mode {

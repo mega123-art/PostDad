@@ -47,15 +47,23 @@ pub struct App {
     pub input_mode: InputMode,
     pub selected_tab: usize,
     pub is_loading: bool,
-    pub json_list_state: ratatui::widgets::ListState,
+    pub json_list_state: ListState,
     pub popup_message: Option<String>,
+    
+    // Collections
+    pub collections: Vec<Collection>,
+    pub collection_state: ListState,
+    pub active_sidebar: bool, // true if focusing on sidebar
 }
 
 use ratatui::widgets::ListState;
 use arboard::Clipboard;
+use crate::collection::Collection;
 
 impl App {
     pub fn new() -> App {
+        let collections = Collection::load_from_dir("collections").unwrap_or_default();
+        
         App {
             url: String::from("https://api.github.com/zen"),
             method: String::from("GET"),
@@ -66,7 +74,90 @@ impl App {
             is_loading: false,
             json_list_state: ListState::default(),
             popup_message: None,
+            
+            collections,
+            collection_state: ListState::default(),
+            active_sidebar: false,
         }
+    }
+
+    // Collection Navigation helpers
+    pub fn next_collection_item(&mut self) {
+        if self.collections.is_empty() { return; }
+        
+        // Flatten the list for navigation: Collection Header -> Requests -> Next Header
+        // For simplicity v1: Just list all requests in a single flat list "Collection::Request"
+        
+        // Actually, let's just count total requests across all collections for the index
+        let total_items = self.flattened_request_count();
+        if total_items == 0 { return; }
+
+        let i = match self.collection_state.selected() {
+            Some(i) => {
+                if i >= total_items - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.collection_state.select(Some(i));
+    }
+
+    pub fn previous_collection_item(&mut self) {
+        let total_items = self.flattened_request_count();
+        if total_items == 0 { return; }
+
+        let i = match self.collection_state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    total_items - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.collection_state.select(Some(i));
+    }
+
+    pub fn load_selected_request(&mut self) {
+        if let Some(idx) = self.collection_state.selected() {
+            let req_data = if let Some((_, request)) = self.get_request_at_index(idx) {
+                Some((request.url.clone(), request.method.clone()))
+            } else {
+                None
+            };
+
+            if let Some((url, method)) = req_data {
+                self.url = url;
+                self.method = method.clone();
+                self.popup_message = Some(format!("Loaded: {} {}", method, self.url));
+            }
+        }
+    }
+
+    fn flattened_request_count(&self) -> usize {
+        self.collections.iter().map(|c| c.requests.len()).sum()
+    }
+
+    // Helper to map a flat index back to a specific request
+    pub fn get_request_at_index(&self, index: usize) -> Option<(&String, &crate::collection::RequestConfig)> {
+        let mut current_idx = 0;
+        for col in &self.collections {
+            // Sort requests by key to have stable order
+            let mut keys: Vec<&String> = col.requests.keys().collect();
+            keys.sort();
+            
+            for key in keys {
+                if current_idx == index {
+                    return col.requests.get(key).map(|r| (key, r));
+                }
+                current_idx += 1;
+            }
+        }
+        None
     }
 
     pub fn generate_curl_command(&self) -> String {

@@ -1,7 +1,38 @@
 use crate::app::{App, InputMode};
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
 pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
+    // Global Shortcuts
+    if key_event.modifiers.contains(KeyModifiers::CONTROL) {
+        match key_event.code {
+            KeyCode::Char('h') => {
+                app.active_sidebar = !app.active_sidebar;
+                if app.active_sidebar {
+                    // Select first item if nothing selected
+                    if app.collection_state.selected().is_none() {
+                        app.collection_state.select(Some(0));
+                    }
+                }
+                return; 
+            }
+            _ => {}
+        }
+    }
+
+    if app.active_sidebar {
+        match key_event.code {
+            KeyCode::Char('j') | KeyCode::Down => app.next_collection_item(),
+            KeyCode::Char('k') | KeyCode::Up => app.previous_collection_item(),
+            KeyCode::Enter => {
+                app.load_selected_request();
+                // Optionally close sidebar or keep it open? Let's keep focus for rapid testing
+            }
+            KeyCode::Esc => app.active_sidebar = false,
+            _ => {}
+        }
+        return;
+    }
+
     match app.input_mode {
         InputMode::Normal => match key_event.code {
             KeyCode::Char('e') => {
