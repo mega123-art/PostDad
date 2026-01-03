@@ -47,13 +47,7 @@ jobs:
     - name: Rename Binary
       shell: bash
       run: |
-        BIN_PATH=$(find target -name "${{ matrix.artifact_name }}" -type f | grep "${{ matrix.target }}/release" | head -n 1)
-        if [ -z "$BIN_PATH" ]; then
-          echo "Binary not found!"
-          ls -R target
-          exit 1
-        fi
-        cp "$BIN_PATH" ${{ matrix.asset_name }}
+        cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ${{ matrix.asset_name }}
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
