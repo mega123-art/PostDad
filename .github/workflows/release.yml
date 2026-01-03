@@ -18,19 +18,19 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: postdad
+            artifact_name: PostDad
             asset_name: postdad-linux-amd64
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: postdad
+            artifact_name: PostDad
             asset_name: postdad-macos-intel
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: postdad
+            artifact_name: PostDad
             asset_name: postdad-macos-silicon
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: postdad.exe
+            artifact_name: PostDad.exe
             asset_name: postdad-windows-amd64.exe
 
     steps:
