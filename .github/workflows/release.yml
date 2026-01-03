@@ -23,7 +23,11 @@ jobs:
           - os: macos-latest
             target: x86_64-apple-darwin
             artifact_name: postdad
-            asset_name: postdad-macos-amd64
+            asset_name: postdad-macos-intel
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: postdad
+            asset_name: postdad-macos-silicon
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             artifact_name: postdad.exe
@@ -37,9 +41,9 @@ jobs:
       with:
         targets: ${{ matrix.target }}
 
-    # Linux (Musl) Setup for Static Binary
+    # Linux (Musl) Setup
     - name: Install musl-tools (Linux)
-      if: runner.os == 'Linux'
+      if: contains(matrix.target, 'linux-musl')
       run: |
         sudo apt-get update
         sudo apt-get install -y musl-tools libssl-dev pkg-config
@@ -47,11 +51,17 @@ jobs:
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
 
+    # Rename binary for upload to match unique asset name
+    - name: Rename Binary
+      shell: bash
+      run: |
+        cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ${{ matrix.asset_name }}
+
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: ${{ matrix.asset_name }}
-        path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+        path: ${{ matrix.asset_name }}
 
   release:
     needs: build
@@ -62,11 +72,15 @@ jobs:
       with:
         path: artifacts
 
+    - name: Display Structure
+      run: ls -R artifacts
+
     - name: Create Release
       uses: softprops/action-gh-release@v1
       if: startsWith(github.ref, 'refs/tags/')
       with:
         files: |
-          artifacts/postdad-linux-amd64/postdad
-          artifacts/postdad-macos-amd64/postdad
-          artifacts/postdad-windows-amd64.exe/postdad.exe
+          artifacts/postdad-linux-amd64/postdad-linux-amd64
+          artifacts/postdad-macos-intel/postdad-macos-intel
+          artifacts/postdad-macos-silicon/postdad-macos-silicon
+          artifacts/postdad-windows-amd64.exe/postdad-windows-amd64.exe
