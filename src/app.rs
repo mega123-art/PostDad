@@ -79,6 +79,10 @@ pub struct App {
     // Auth
     pub auth_token: String, 
     
+    // Metrics & UI Stats
+    pub latency_history: Vec<u64>,
+    pub zen_mode: bool,
+
     pub show_help: bool,
 }
 
@@ -122,6 +126,8 @@ impl App {
             editor_mode: EditorMode::None,
             request_headers: std::collections::HashMap::new(),
             auth_token: String::new(),
+            latency_history: Vec::new(),
+            zen_mode: false,
             show_help: false,
         }
     }

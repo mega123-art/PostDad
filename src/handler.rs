@@ -91,6 +91,9 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             KeyCode::Char('?') => {
                 app.show_help = !app.show_help;
             }
+            KeyCode::Char('z') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                 app.zen_mode = !app.zen_mode;
+            }
             KeyCode::Char('h') | KeyCode::Left => { 
                  
                  

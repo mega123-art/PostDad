@@ -128,8 +128,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     app.status_code = Some(status);
                     app.is_loading = false;
                     
-                    
-                    
+                    // Update Latency Sparkline
+                    app.latency_history.push(duration as u64);
+                    if app.latency_history.len() > 40 {
+                        app.latency_history.remove(0);
+                    }
+
                     app.add_history(app.method.clone(), app.process_url(), duration);
                 }
                 NetworkEvent::Error(e) => {
