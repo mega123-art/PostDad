@@ -73,13 +73,13 @@ pub struct App {
     pub request_history: Vec<String>,
     
     pub request_body: String,
-    pub editor_mode: EditorMode, // Replaces should_open_editor boolean
+    pub editor_mode: EditorMode, 
     pub request_headers: std::collections::HashMap<String, String>,
     
-    // Auth
+ 
     pub auth_token: String, 
     
-    // Metrics & UI Stats
+    
     pub latency_history: Vec<u64>,
     pub zen_mode: bool,
 
@@ -150,7 +150,7 @@ impl App {
         let env = self.get_active_env();
         
         for (key, val) in &env.variables {
-            let placeholder = format!("{{{{{}}}}}", key); // {{key}}
+            let placeholder = format!("{{{{{}}}}}", key); 
             final_url = final_url.replace(&placeholder, val);
         }
         final_url
@@ -225,14 +225,11 @@ impl App {
         self.collection_state.select(Some(i));
     }
 
-    // This handles both requests AND history for selection
     pub fn load_selected_request(&mut self) {
         if let Some(idx) = self.collection_state.selected() {
             let collection_count = self.flattened_collection_only_count();
             
-            // Adjust index to skip the "--- Collections ---" header
             if idx > 0 && idx <= collection_count {
-                 // It's a collection item
                  let req_data = if let Some((_, request)) = self.get_request_at_visual_index(idx) {
                      Some((request.url.clone(), request.method.clone()))
                  } else {
@@ -245,7 +242,7 @@ impl App {
                      self.popup_message = Some(format!("Loaded: {} {}", self.method, self.url));
                  }
             } else if idx > collection_count + 1 {
-                 let history_idx = idx - (collection_count + 2); // 2 headers
+                 let history_idx = idx - (collection_count + 2); 
                  if history_idx < self.request_history.len() {
                       if let Some(log) = self.request_history.get(history_idx) {
                           let parts: Vec<&str> = log.split_whitespace().collect();

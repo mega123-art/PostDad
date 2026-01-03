@@ -63,7 +63,7 @@ fn flatten_tree(entries: &[JsonEntry], list_items: &mut Vec<ListItem<'static>>, 
 }
 
 pub fn render(f: &mut Frame, app: &mut App) {
-    // --- REDO CHUNKS for Zen Mode ---
+    
     let chunks = if app.zen_mode {
         Layout::default()
             .direction(Direction::Horizontal)
@@ -76,13 +76,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
             .split(f.area())
     };
 
-    // --- SIDEBAR (with Sparkline) ---
-    if !app.zen_mode { // Render Sidebar
+    
+    if !app.zen_mode { 
         let sidebar_chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Min(10),    // List
-                Constraint::Length(4),  // Sparkline
+                Constraint::Min(10),    
+                Constraint::Length(4),  
             ])
             .split(chunks[0]);
 
@@ -97,10 +97,10 @@ pub fn render(f: &mut Frame, app: &mut App) {
             });
 
         let mut collection_items = Vec::new();
-        // ... (Collection logic roughly same) ...
+        
         collection_items.push(ListItem::new(Span::styled("--- Collections ---", Style::default().add_modifier(Modifier::BOLD))));
         for col in &app.collections {
-            // ... (Keys sort) ...
+            
             let mut keys: Vec<&String> = col.requests.keys().collect();
             keys.sort();
             for key in keys {
@@ -123,9 +123,9 @@ pub fn render(f: &mut Frame, app: &mut App) {
             .highlight_symbol("> ");
         f.render_stateful_widget(collection_list, sidebar_chunks[0], &mut app.collection_state);
 
-        // SPARKLINE
-        // Need numeric history. Let's assume app.latency_history exists (Vec<u64>)
-        // We will add this field to App struct in next step.
+        
+        
+        
         let sparkline = Sparkline::default()
             .block(Block::default().title(" Latency Heartbeat ").borders(Borders::ALL).border_style(Style::default().fg(Color::Magenta)))
             .data(&app.latency_history)
@@ -162,18 +162,18 @@ pub fn render(f: &mut Frame, app: &mut App) {
         .select(app.selected_tab)
         .highlight_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
 
-    // --- MAIN CONTENT (Adapts to Zen) ---
+    
     let main_constraints = if app.zen_mode {
          vec![
-            Constraint::Length(3), // URL
-            Constraint::Min(10),   // Response (HUGE)
+            Constraint::Length(3), 
+            Constraint::Min(10),   
          ]
     } else {
          vec![
-            Constraint::Length(3), // URL
-            Constraint::Length(3), // Tabs
-            Constraint::Length(8), // Config
-            Constraint::Min(10),   // Response
+            Constraint::Length(3), 
+            Constraint::Length(3), 
+            Constraint::Length(8), 
+            Constraint::Min(10),   
          ]
     };
 
@@ -182,23 +182,23 @@ pub fn render(f: &mut Frame, app: &mut App) {
         .constraints(main_constraints)
         .split(chunks[1]);
 
-    // 1. URL Bar (Always Visible)
+    
     f.render_widget(url_bar, right_col[0]);
 
     if app.zen_mode {
-         // In Zen Mode, Response is at [1]
+         
          render_response_area(f, app, right_col[1]);
     } else {
-         // Normal Mode
-         // 2. Tabs
+         
+         
          f.render_widget(tabs, right_col[1]);
          
-         // 3. Config Content
-         // Let's inline the tab logic for safety as before
-         // ... (Tab logic from previous step) ...
+         
+         
+         
          let config_block = Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Blue));
          match app.selected_tab {
-            0 => { // Params
+            0 => { 
                  let mut param_items = Vec::new();
                  if let Ok(u) = reqwest::Url::parse(&app.url) {
                      for (k, v) in u.query_pairs() {
@@ -208,15 +208,15 @@ pub fn render(f: &mut Frame, app: &mut App) {
                  if param_items.is_empty() { param_items.push(ListItem::new("No params (add ?key=val to URL)")); }
                  f.render_widget(List::new(param_items).block(config_block.title(" Params (Read-Only) ")), right_col[2]);
             },
-            1 => { // Headers
+            1 => { 
                 let headers: Vec<ListItem> = app.request_headers.iter().map(|(k,v)| ListItem::new(format!("{}: {}", k, v))).collect();
                 f.render_widget(List::new(headers).block(config_block.title(" Headers ")), right_col[2]);
             },
-            2 => { // Body
+            2 => { 
                  let body_txt = if app.request_body.is_empty() { "No Body. Press 'b' to open editor." } else { &app.request_body };
                  f.render_widget(Paragraph::new(body_txt).block(config_block.title(" Body Preview ")).wrap(Wrap{trim:true}), right_col[2]);
             },
-            3 => { // Auth
+            3 => { 
                  let title = if app.input_mode == InputMode::EditingAuth { " Bearer Token (Editing) " } else { " Bearer Token (Press 'e' to Edit) " };
                  let style = if app.input_mode == InputMode::EditingAuth { Style::default().fg(Color::Yellow) } else { Style::default() };
                  let auth_txt = if app.auth_token.is_empty() { "No token set" } else { &app.auth_token };
@@ -225,7 +225,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             _ => {}
          };
          
-         // 4. Response Area
+         
          render_response_area(f, app, right_col[3]);
     }
 
@@ -238,7 +238,6 @@ pub fn render(f: &mut Frame, app: &mut App) {
         f.render_widget(para, area);
     }
 
-// Helper to avoid duplicate code for Response Area
 fn render_response_area(f: &mut Frame, app: &mut App, area: ratatui::layout::Rect) {
     let status_bar_text = if app.is_loading { 
         " Fetching... ".to_string() 
