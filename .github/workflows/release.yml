@@ -51,11 +51,19 @@ jobs:
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
 
-    # Rename binary for upload to match unique asset name
+    # Rename binary for upload (Robust Search)
     - name: Rename Binary
       shell: bash
       run: |
-        cp target/${{ matrix.target }}/release/${{ matrix.artifact_name }} ${{ matrix.asset_name }}
+        # Find the binary in the target directory (ignoring deps/incremental)
+        # We look for a file named artifact_name in target/
+        BIN_PATH=$(find target -name "${{ matrix.artifact_name }}" -type f | grep "${{ matrix.target }}/release" | head -n 1)
+        if [ -z "$BIN_PATH" ]; then
+          echo "Binary not found!"
+          ls -R target
+          exit 1
+        fi
+        cp "$BIN_PATH" ${{ matrix.asset_name }}
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
