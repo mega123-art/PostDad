@@ -17,7 +17,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
+            target: x86_64-unknown-linux-gnu
             artifact_name: postdad
             asset_name: postdad-linux-amd64
           - os: macos-latest
@@ -41,22 +41,12 @@ jobs:
       with:
         targets: ${{ matrix.target }}
 
-    # Linux (Musl) Setup
-    - name: Install musl-tools (Linux)
-      if: contains(matrix.target, 'linux-musl')
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y musl-tools libssl-dev pkg-config
-
     - name: Build
       run: cargo build --release --target ${{ matrix.target }}
 
-    # Rename binary for upload (Robust Search)
     - name: Rename Binary
       shell: bash
       run: |
-        # Find the binary in the target directory (ignoring deps/incremental)
-        # We look for a file named artifact_name in target/
         BIN_PATH=$(find target -name "${{ matrix.artifact_name }}" -type f | grep "${{ matrix.target }}/release" | head -n 1)
         if [ -z "$BIN_PATH" ]; then
           echo "Binary not found!"
@@ -79,9 +69,6 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: artifacts
-
-    - name: Display Structure
-      run: ls -R artifacts
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
