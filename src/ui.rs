@@ -172,10 +172,18 @@ pub fn render(f: &mut Frame, app: &mut App) {
         
     match app.selected_tab {
         0 => { 
-             let info = Paragraph::new("Query Parameters currently must be edited directly in the URL bar above.\n\nTip: Press 'e' to edit the URL.")
-                .block(config_block.title(" Params "))
-                .wrap(Wrap{trim:true});
-             f.render_widget(info, right_col[2]);
+             let mut param_items = Vec::new();
+             if let Ok(u) = reqwest::Url::parse(&app.url) {
+                 for (k, v) in u.query_pairs() {
+                     param_items.push(ListItem::new(format!("{} = {}", k, v)));
+                 }
+             }
+             if param_items.is_empty() {
+                 param_items.push(ListItem::new("No params (add ?key=val to URL)"));
+             }
+             
+             let list = List::new(param_items).block(config_block.title(" Params (Read-Only) "));
+             f.render_widget(list, right_col[2]);
         },
         1 => { 
             let headers: Vec<ListItem> = app.request_headers.iter()
@@ -188,9 +196,14 @@ pub fn render(f: &mut Frame, app: &mut App) {
              let para = Paragraph::new(body_txt).block(config_block.title(" Body Preview ")).wrap(Wrap{trim:true});
              f.render_widget(para, right_col[2]);
         },
-        3 => { 
-             let info = Paragraph::new("Authentication helpers are coming soon.\n\nPlease use the [2] Headers tab to manually set 'Authorization'.\n\nShortcut: Press 'H' to edit headers as JSON.")
-                .block(config_block.title(" Auth "))
+        3 => { // Auth
+             let title = if app.input_mode == InputMode::EditingAuth { " Bearer Token (Editing) " } else { " Bearer Token (Press 'e' to Edit) " };
+             let style = if app.input_mode == InputMode::EditingAuth { Style::default().fg(Color::Yellow) } else { Style::default() };
+             
+             let auth_txt = if app.auth_token.is_empty() { "No token set" } else { &app.auth_token };
+             
+             let info = Paragraph::new(auth_txt)
+                .block(config_block.title(title).border_style(style))
                 .wrap(Wrap{trim:true});
              f.render_widget(info, right_col[2]);
         },

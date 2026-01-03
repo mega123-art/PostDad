@@ -40,7 +40,11 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
     match app.input_mode {
         InputMode::Normal => match key_event.code {
             KeyCode::Char('e') => {
-                app.input_mode = InputMode::Editing;
+                if app.selected_tab == 3 {
+                    app.input_mode = InputMode::EditingAuth;
+                } else {
+                    app.input_mode = InputMode::Editing;
+                }
             }
             KeyCode::Char('q') => {
                 
@@ -128,6 +132,18 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             }
             KeyCode::Esc => {
                 app.input_mode = InputMode::Normal;
+            }
+            _ => {}
+        },
+        InputMode::EditingAuth => match key_event.code {
+            KeyCode::Enter | KeyCode::Esc => {
+                app.input_mode = InputMode::Normal;
+            }
+            KeyCode::Char(c) => {
+                app.auth_token.push(c);
+            }
+            KeyCode::Backspace => {
+                app.auth_token.pop();
             }
             _ => {}
         },

@@ -4,6 +4,7 @@ use serde_json::Value;
 pub enum InputMode {
     Normal,
     Editing,
+    EditingAuth,
     Search,
 }
 
@@ -75,6 +76,9 @@ pub struct App {
     pub editor_mode: EditorMode, // Replaces should_open_editor boolean
     pub request_headers: std::collections::HashMap<String, String>,
     
+    // Auth
+    pub auth_token: String, 
+    
     pub show_help: bool,
 }
 
@@ -85,37 +89,39 @@ use crate::environment::Environment;
 
 impl App {
     pub fn new() -> App {
-        let collections = Collection::load_from_dir("collections").unwrap_or_default();
-        let environments = Environment::load_from_file("environments.hcl").unwrap_or_default();
-        
+        let (cols, col_state) = match Collection::load_from_dir("collections") {
+            Ok(c) => (c, ListState::default()),
+            Err(_) => (Vec::new(), ListState::default()),
+        };
+
+        let (envs, env_idx) = match Environment::load_from_file("environments.hcl") {
+            Ok(e) => (e, 0),
+            Err(_) => (Vec::new(), 0)
+        };
+
         App {
             url: String::from("https://api.github.com/zen"),
             method: String::from("GET"),
+            input_mode: InputMode::Normal,
             response: None,
             response_json: None,
-            input_mode: InputMode::Normal,
             selected_tab: 0,
             is_loading: false,
-            json_list_state: ListState::default(),
-            popup_message: None,
-            
-            collections,
-            collection_state: ListState::default(),
-            active_sidebar: false,
-            
             latency: None,
             status_code: None,
             search_query: String::new(),
-            
-            environments,
-            selected_env_index: 0,
-            
+            json_list_state: ListState::default(),
+            popup_message: None,
+            collections: cols,
+            collection_state: col_state,
+            active_sidebar: false,
+            environments: envs,
+            selected_env_index: env_idx,
             request_history: Vec::new(),
-            
             request_body: String::new(),
             editor_mode: EditorMode::None,
             request_headers: std::collections::HashMap::new(),
-            
+            auth_token: String::new(),
             show_help: false,
         }
     }

@@ -153,6 +153,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let processed_url = app.process_url();
                     let body = if app.request_body.trim().is_empty() { None } else { Some(app.request_body.clone()) };
                     
+                    if !app.auth_token.is_empty() {
+                         app.request_headers.insert("Authorization".to_string(), format!("Bearer {}", app.auth_token));
+                    }
+
                     let _ = ui_tx.send(NetworkEvent::RunRequest { 
                         url: processed_url,
                         method: app.method.clone(),
