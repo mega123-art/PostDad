@@ -146,6 +146,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         
         if event::poll(std::time::Duration::from_millis(16))? {
             if let Event::Key(key) = event::read()? {
+                // Fix double-stroking on Windows by ignoring Release events
+                if key.kind == event::KeyEventKind::Release {
+                    continue;
+                }
                 
                 if app.input_mode == InputMode::Normal && key.code == KeyCode::Char('q') {
                      break;
