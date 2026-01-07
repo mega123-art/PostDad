@@ -31,6 +31,8 @@ Modern dev tools are bloated. Postman takes 5-10 seconds to launch. Postdad take
 - **JSON Explorer**: Interactive tree view for massive JSON responses. Expansion/Collapse nodes with arrow keys.
 - **Dad's Garage**: Local-first collection storage. No login required.
 - **Async & Non-Blocking**: The UI never freezes, even if the API times out.
+- **Latency Heartbeat**: Real-time graph monitoring your API's pulse.
+- **Zen Mode**: Press `Ctrl+z` to focus purely on the response data.
 
 ## Installation
 
@@ -44,6 +46,7 @@ cargo install Postdad
 Postdad
 ```
 
+- **Ctrl+z**: Toggle Zen Mode (Focus)
 - **f**: Toggle Fullscreen Response
 - **Enter**: Send Request
 - **e**: Edit URL (Press **Tab** to cycle method)
@@ -58,6 +61,8 @@ Postdad
 - [x] Collection Management (`.hcl` support)
 - [x] "Dad's Directions" (Copy as Curl) (`c` key)
 - [x] Response Timing (ms precision)
+- [x] Latency Heartbeat (Sparkline Graph)
+- [x] Zen Mode (`Ctrl+z`)
 - [x] Search / Filter JSON (`/` key)
 - [x] Fullscreen Response View (`f` key)
 - [x] Quick Method Cycle (Tab in Edit Mode)
