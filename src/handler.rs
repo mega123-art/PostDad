@@ -121,11 +121,17 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 app.input_mode = InputMode::Search;
                 app.search_query.clear();
             }
+            KeyCode::Char('f') => {
+                app.fullscreen_response = !app.fullscreen_response;
+            }
             _ => {}
         },
         InputMode::Editing => match key_event.code {
             KeyCode::Enter => {
                 app.input_mode = InputMode::Normal;
+            }
+            KeyCode::Tab => {
+                app.cycle_method();
             }
             KeyCode::Char(c) => {
                 app.url.push(c);

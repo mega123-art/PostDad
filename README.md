@@ -44,8 +44,9 @@ cargo install postdad
 postdad
 ```
 
+- **f**: Toggle Fullscreen Response
 - **Enter**: Send Request
-- **e**: Edit URL
+- **e**: Edit URL (Press **Tab** to cycle method)
 - **Tab**: Switch Request Tabs (Params, Headers, Body)
 - **q**: Quit (Dad needs a nap)
 
@@ -58,6 +59,8 @@ postdad
 - [x] "Dad's Directions" (Copy as Curl) (`c` key)
 - [x] Response Timing (ms precision)
 - [x] Search / Filter JSON (`/` key)
+- [x] Fullscreen Response View (`f` key)
+- [x] Quick Method Cycle (Tab in Edit Mode)
 - [x] Environment Variables
 - [x] Request Body Editor (`b` key -> `$EDITOR`)
    - *Pro Tip*: For VS Code integration, run `export EDITOR="code --wait"` (Mac/Linux) or set `$env:EDITOR="code --wait"` (PowerShell).

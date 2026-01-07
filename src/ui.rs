@@ -64,6 +64,10 @@ fn flatten_tree(entries: &[JsonEntry], list_items: &mut Vec<ListItem<'static>>, 
 
 pub fn render(f: &mut Frame, app: &mut App) {
     
+    
+    if app.fullscreen_response {
+        render_response_area(f, app, f.area());
+    } else {
     let chunks = if app.zen_mode {
         Layout::default()
             .direction(Direction::Horizontal)
@@ -185,6 +189,16 @@ pub fn render(f: &mut Frame, app: &mut App) {
     
     f.render_widget(url_bar, right_col[0]);
 
+    if app.input_mode == InputMode::Editing {
+        let x = right_col[0].x 
+            + 1 // Border
+            + (app.method.len() as u16 + 2) // Method padding
+            + 1 // URL padding
+            + app.url.len() as u16;
+        let y = right_col[0].y + 1;
+        f.set_cursor_position((x, y));
+    }
+
     if app.zen_mode {
          
          render_response_area(f, app, right_col[1]);
@@ -230,6 +244,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
     }
 
     
+    }
+
     if let Some(msg) = &app.popup_message {
         let area = centered_rect(60, 20, f.area());
         f.render_widget(ratatui::widgets::Clear, area); 
@@ -301,10 +317,11 @@ fn render_response_area(f: &mut Frame, app: &mut App, area: ratatui::layout::Rec
             "  Tab        Cycle Tabs (Params, Headers, Body, Auth)",
             "",
             "Request:",
-            "  e          Edit URL",
+            "  e          Edit URL (Tab to Cycle Method)",
             "  m          Cycle Method (GET, POST, ...)",
             "  b          Edit Body (External Editor)",
             "  H          Edit Headers (External Editor)",
+            "  f          Toggle Fullscreen Response",
             "  s          Save Request (to saved.hcl)",
             "  Enter      Send Request",
             "",

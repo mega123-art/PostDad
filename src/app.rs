@@ -84,6 +84,7 @@ pub struct App {
     pub zen_mode: bool,
 
     pub show_help: bool,
+    pub fullscreen_response: bool,
 }
 
 use ratatui::widgets::ListState;
@@ -129,6 +130,7 @@ impl App {
             latency_history: Vec::new(),
             zen_mode: false,
             show_help: false,
+            fullscreen_response: false,
         }
     }
     

@@ -1,4 +1,4 @@
-use crate::app::{App, InputMode};
+    use crate::app::{App, InputMode};
 use crate::network::{handle_network, NetworkEvent};
 use std::io;
 use tokio::sync::mpsc;
