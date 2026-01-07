@@ -2,6 +2,12 @@
 name = "PostDad"
 version = "0.1.0"
 edition = "2024"
+description = "A high-speed, local-first Terminal UI (TUI) for testing APIs."
+license = "MIT"
+repository = "https://github.com/parth/PostDad"
+readme = "README.md"
+keywords = ["tui", "api", "rest", "http", "client"]
+categories = ["command-line-utilities", "development-tools", "web-programming::http-client"]
 
 [dependencies]
 arboard = "3.6.1"
