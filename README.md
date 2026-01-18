@@ -40,6 +40,11 @@ Modern dev tools are bloated. Postman takes 5-10 seconds to launch. Postdad take
 cargo install Postdad
 ```
 
+### Update
+```bash
+cargo install --force Postdad
+```
+
 ## Usage
 
 ```bash
