@@ -4,7 +4,7 @@ version = "0.2.0"
 edition = "2024"
 description = "A high-speed, local-first Terminal UI (TUI) for testing APIs."
 license = "MIT"
-repository = "https://github.com/parth/PostDad"
+repository = "https://github.com/mega123-art/PostDad"
 readme = "README.md"
 keywords = ["tui", "api", "rest", "http", "client"]
 categories = ["command-line-utilities", "development-tools", "web-programming::http-client"]
@@ -25,3 +25,5 @@ tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
 futures-util = "0.3"
 rhai = { version = "1.21", features = ["sync"] }
 webbrowser = "1.0.6"
+syntect = "5.3.0"
+similar = "2.7.0"
