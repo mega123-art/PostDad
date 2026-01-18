@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use hcl::Body;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -16,7 +16,6 @@ impl Environment {
         let mut envs = Vec::new();
 
         if !path.exists() {
-            
             let default_hcl = r#"
 env "dev" {
   base_url = "https://jsonplaceholder.typicode.com"
@@ -32,14 +31,16 @@ env "prod" {
         }
 
         let content = fs::read_to_string(path)?;
-        let body: Body = hcl::from_str(&content).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        let body: Body = hcl::from_str(&content)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
         for block in body.blocks() {
             if block.identifier() == "env" {
                 if let Some(label) = block.labels().first() {
-                    let variables: HashMap<String, String> = hcl::from_body(block.body().clone())
-                        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
-                    
+                    let variables: HashMap<String, String> =
+                        hcl::from_body(block.body().clone())
+                            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+
                     envs.push(Environment {
                         name: label.as_str().to_string(),
                         variables,
@@ -47,12 +48,14 @@ env "prod" {
                 }
             }
         }
-        
-        
-        envs.insert(0, Environment {
-            name: "None".to_string(),
-            variables: HashMap::new(),
-        });
+
+        envs.insert(
+            0,
+            Environment {
+                name: "None".to_string(),
+                variables: HashMap::new(),
+            },
+        );
 
         Ok(envs)
     }
