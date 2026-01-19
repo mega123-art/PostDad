@@ -42,7 +42,7 @@ cargo install PostDad
 
 ### Update
 ```bash
-cargo install --force Postdad
+cargo install --force PostDad
 ```
 
 ## Usage
