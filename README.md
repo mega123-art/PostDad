@@ -1,4 +1,4 @@
-# Postdad 👟
+# PostDad 👟
 
 > "He's not mad at your slow API, just disappointed."
 
@@ -33,16 +33,17 @@ Modern dev tools are bloated. Postman takes 5-10 seconds to launch. Postdad take
 - **Async & Non-Blocking**: The UI never freezes, even if the API times out.
 - **Latency Heartbeat**: Real-time graph monitoring your API's pulse.
 - **Zen Mode**: Press `Ctrl+z` to focus purely on the response data.
+- **Multi-Tab Interface**: Create, switch, and close multiple request tabs (`Ctrl+n`).
 
 ## Installation
 
 ```bash
-cargo install Postdad
+cargo install PostDad
 ```
 
 ### Update
 ```bash
-cargo install --force Postdad
+cargo install --force PostDad
 ```
 
 ## Usage
@@ -60,7 +61,12 @@ Postdad
 - **c**: Copy as cURL command
 - **G** (Shift+g): Copy as Python (requests) code
 - **J** (Shift+j): Copy as JavaScript (fetch) code
+- **M** (Shift+m): Generate API Documentation (Markdown)
+- **Ctrl+k**: Open Mock Server Manager
 - **Ctrl+t**: Cycle Themes (Default, Matrix, Cyberpunk, Dracula)
+- **Ctrl+n**: New Request Tab
+- **Ctrl+x**: Close Request Tab
+- **[ / ]**: Cycle Request Tabs
 - **q**: Quit (Dad needs a nap)
 
 ### Tab Context Actions
@@ -75,7 +81,7 @@ Postdad
   - `m`: Switch Type (Raw/Multipart/GraphQL)
   - **Multipart**: `a` Add | `Space` Toggle File | `d` Delete
   - **GraphQL**: `Q` (Shift+q) Edit Query | `V` (Shift+v) Edit Variables
-
+  - **GraphQL Introspection 🔍**: Auto-complete from schema (Press `Ctrl+I`)
 ## Roadmap to Recognition
 
 - [x] Basic TUI Engine
@@ -104,13 +110,23 @@ Postdad
 - [x] Persistence (`s` key -> `saved.hcl`)
 - [x] **Persistence for Chain Rules & Multipart Data**
 - [x] Refactor Collection Saving Logic
-- [x] **Cookie Jar 🍪**: Automatically stores and sends `Set-Cookie` headers for stateful sessions
-- [x] **Code Generators 💻**: Generate request code for Python (Requests) and JavaScript (Fetch) with `G` and `J` keys
-- [x] **WebSocket Support 🔌**: Full WS/WSS client with `Ctrl+W` to toggle mode, real-time messaging, and connection management
-- [x] **Pre-Request Scripts 📜**: Rhai scripting engine for running hooks before requests (`P` to edit)
-- [x] **Collection Runner 🏃**: Run all requests in a collection sequentially with status code assertions (`Ctrl+R`)
-- [x] **Dynamic Themes 🎨**: Cycle between Matrix, Cyberpunk, Dracula, and Default themes (`Ctrl+T`)
-- [x] **Splash Screen ⚡**: Awesome retro-terminal startup screen
+- [x] **gRPC Support 🚀**: Full gRPC client via `grpcurl` (Requires `grpcurl` installed)
+- [x] **Cookie Jar**: Automatically stores and sends `Set-Cookie` headers for stateful sessions
+- [x] **Code Generators**: Generate request code for Python (Requests) and JavaScript (Fetch) with `G` and `J` keys
+- [x] **WebSocket Support**: Full WS/WSS client with `Ctrl+W` to toggle mode, real-time messaging, and connection management
+- [x] **Pre-Request Scripts**: Rhai scripting engine for running hooks before requests (`P` to edit)
+- [x] **Collection Runner**: Run all requests in a collection sequentially with status code assertions (`Ctrl+R`)
+- [x] **Dynamic Themes**: Cycle between Matrix, Cyberpunk, Dracula, and Default themes (`Ctrl+T`)
+- [x] **Splash Screen**: Awesome retro-terminal startup screen
+- [x] **Import/Export**: Import Postman Collections (`.json`) via `--import` flag
+- [x] **Test Scripts**: Post-request assertions (Rhai) and console logs (`Shift+T` to edit)
+- [x] **Request Tabs 📑**: Work on multiple requests simultaneously
+- [x] **Syntax Highlighting 🎨**: In-app JSON/code highlighting
+- [x] **Response History 📜**: View previous responses for a request
+- [x] **Request Diff 🔀**: Compare two responses side by side (Press 'D' in History)
+- [x] **API Documentation Gen 📝**: Generate docs from collections (Press 'M')
+- [x] **Mock Servers 🎭**: Create mock endpoints for testing (Press 'Ctrl+K')
+- [x] **GraphQL Introspection 🔍**: Auto-complete from schema (Press 'Ctrl+I')
 
 ### WebSocket Mode (`Ctrl+W` to enter)
 - **e**: Edit WebSocket URL
@@ -129,6 +145,37 @@ Run all requests in a collection sequentially and see pass/fail results.
 - **x**: Clear results
 - **Esc**: Exit runner mode
 - **?**: Help
+
+### Mock Server Manager (`Ctrl+K`)
+Create and run local mock endpoints.
+
+- **s**: Start / Stop Server (Port 3000 default)
+- **a**: Add new mock route (template)
+- **d**: Delete selected route
+- **Esc**: Exit Manager
+
+### gRPC Mode (Switch Body to 'gRPC' with `m` key)
+
+Make gRPC calls using `grpcurl` as backend.
+
+**Prerequisites:** Install [grpcurl](https://github.com/fullstorydev/grpcurl)
+
+**Usage:**
+1. Set URL to your gRPC server (e.g., `localhost:50051`)
+2. Press `m` in Body tab until you get to `gRPC (Proto)` mode
+3. Press `u` to set Service/Method (e.g., `grpc.health.v1.Health/Check`)
+4. Press `p` to set Proto file path (optional, for servers without reflection)
+5. Press `b` to edit JSON payload
+6. Press `Enter` to send the request
+
+**Keys:**
+- **u**: Edit Service/Method
+- **p**: Edit Proto file path
+- **b**: Edit request body (JSON format)
+- **L** (Shift+L): Discover services via server reflection
+- **D** (in services list): Show service method signatures
+- **Enter**: Send gRPC request / Select service
+
 
 **Status Code Assertions:**
 By default, expects HTTP 200. Add `expected_status = XXX` in your `.hcl` file to specify a different expected status:
@@ -173,25 +220,40 @@ let id = uuid();
 set_header("X-Request-ID", id);
 ```
 
+### Post-Request Test Scripts (`Shift+T`)
+
+Run assertions on the response. Results appear in the status bar and "Tests & Console" panel.
+
+**Additional Functions:**
+| Function | Description |
+|----------|-------------|
+| `test(name, bool)` | Record a test result |
+| `status_code()` | Get response status code |
+| `response_time()` | Get latency in ms |
+| `response_body()` | Get raw response body |
+| `json_path(query)` | Extract value using JSONPath (e.g. `$.data.id`) |
+
+**Example:**
+```rhai
+test("Status is 200", status_code() == 200);
+test("Fast response", response_time() < 500);
+
+let token = json_path("$.token");
+test("Token received", token != "");
+
+if token != "" {
+    print("Received token: " + token);
+}
+```
+
 ## Leveling Up to Postman (Future Ideas)
 
 To truly rival Postman, we still need:
 
-1. **Import/Export 📦**: Import Postman Collections (`.json`) and OpenAPI/Swagger specs
-2. **Test Scripts 🧪**: Post-request assertions (like Postman's `pm.test()`)
-3. **More Code Generators 💻**: Add support for Go, Rust, Ruby, PHP, and C#
-4. **Proxy Support 🔒**: HTTP/SOCKS proxy configuration for corporate environments
-5. **Request Tabs 📑**: Work on multiple requests simultaneously
-6. **Response History 📜**: View previous responses for a request
-7. **Binary Response Handling 📁**: Download files, preview images
-8. **SSL Certificate Config 🔐**: Custom CA certs, client certificates
-9. **Request Timeout Settings ⏱️**: Per-request timeout configuration
-10. **Syntax Highlighting 🎨**: In-app JSON/code highlighting
-11. **Mock Servers 🎭**: Create mock endpoints for testing
-12. **gRPC Support �**: Protocol buffers and gRPC streaming
-13. **GraphQL Introspection 🔍**: Auto-complete from schema
-14. **Request Diff 🔀**: Compare two responses side by side
-15. **API Documentation Gen 📝**: Generate docs from collections
+1. **More Code Generators 💻**: Add support for Go, Rust, Ruby, PHP, and C#
+2. **Proxy Support 🔒**: HTTP/SOCKS proxy configuration for corporate environments
+3. **SSL Certificate Config 🔐**: Custom CA certs, client certificates
+4. **Request Timeout Settings ⏱️**: Per-request timeout configuration
 
 ## License
 
