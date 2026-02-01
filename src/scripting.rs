@@ -12,7 +12,6 @@ pub struct ScriptResult {
     pub errors: Vec<String>,
 }
 
-
 pub fn run_script(
     script: &str,
     method: &str,
@@ -26,9 +25,10 @@ pub fn run_script(
     }
 
     let mut engine = Engine::new();
-    
+
     // Shared state for the script to modify
-    let headers: Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(current_headers.clone()));
+    let headers: Arc<Mutex<HashMap<String, String>>> =
+        Arc::new(Mutex::new(current_headers.clone()));
     let variables: Arc<Mutex<HashMap<String, String>>> = Arc::new(Mutex::new(env_vars.clone()));
     let body_override: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let url_override: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
@@ -153,7 +153,7 @@ pub fn run_script(
 
     // Run the script
     let mut result = ScriptResult::default();
-    
+
     match engine.compile(script) {
         Ok(ast) => {
             if let Err(e) = engine.run_ast_with_scope(&mut scope, &ast) {
@@ -212,7 +212,7 @@ impl<'a> Base64Encoder<'a> {
 
     fn encode_block(&mut self) {
         const ALPHABET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-        
+
         let b0 = self.buffer[0] as usize;
         let b1 = self.buffer[1] as usize;
         let b2 = self.buffer[2] as usize;
@@ -256,14 +256,12 @@ impl<'a> std::io::Write for Base64Encoder<'a> {
 
 fn base64_decode_str(input: &str) -> Option<String> {
     const DECODE_TABLE: [i8; 128] = [
-        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63,
-        52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -1, -1, -1,
-        -1,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14,
-        15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1,
-        -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
-        41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1,
+        -1, 63, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -1, -1, -1, -1, 0, 1, 2, 3, 4,
+        5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1,
+        -1, -1, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
+        46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1,
     ];
 
     let input = input.trim_end_matches('=');
@@ -291,6 +289,109 @@ fn base64_decode_str(input: &str) -> Option<String> {
     String::from_utf8(output).ok()
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct PostScriptResult {
+    pub tests: Vec<(String, bool)>,
+    pub errors: Vec<String>,
+}
+
+pub fn run_post_script(
+    script: &str,
+    status: u16,
+    body: &str,
+    headers: &HashMap<String, String>,
+    latency: u128,
+) -> PostScriptResult {
+    if script.trim().is_empty() {
+        return PostScriptResult::default();
+    }
+
+    let mut engine = Engine::new();
+
+    // Shared state
+    let tests: Arc<Mutex<Vec<(String, bool)>>> = Arc::new(Mutex::new(Vec::new()));
+    let logs: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+
+    let tests_clone = tests.clone();
+    let logs_clone = logs.clone();
+
+    // Capture response data for closures
+    let headers_arc = Arc::new(headers.clone());
+    let body_string = body.to_string();
+
+    // Register test function
+    // Usage: test("Status is 200", status_code() == 200);
+    engine.register_fn("test", move |name: &str, result: bool| {
+        if let Ok(mut t) = tests_clone.lock() {
+            t.push((name.to_string(), result));
+        }
+    });
+
+    // Register status_code
+    engine.register_fn("status_code", move || -> i64 { status as i64 });
+
+    // Register response_time (latency)
+    engine.register_fn("response_time", move || -> i64 { latency as i64 });
+
+    // Register response_body
+    let body_str_clone = body_string.clone();
+    engine.register_fn("response_body", move || -> String {
+        body_str_clone.clone()
+    });
+
+    // Register get_header
+    let headers_clone = headers_arc.clone();
+    engine.register_fn("get_header", move |name: &str| -> String {
+        headers_clone.get(name).cloned().unwrap_or_default()
+    });
+
+    // Register json_path
+    let body_json = body_string.clone();
+    engine.register_fn("json_path", move |query: &str| -> String {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_json) {
+            let mut selector = jsonpath_lib::selector(&json);
+            if let Ok(matches) = selector(query) {
+                if let Some(first) = matches.first() {
+                    // Return raw string or json string?
+                    if let Some(s) = first.as_str() {
+                        return s.to_string();
+                    } else {
+                        return first.to_string();
+                    }
+                }
+            }
+        }
+        String::new()
+    });
+
+    // Register print
+    engine.register_fn("print", move |msg: &str| {
+        if let Ok(mut l) = logs_clone.lock() {
+            l.push(msg.to_string());
+        }
+    });
+
+    let mut result = PostScriptResult::default();
+
+    match engine.eval::<()>(script) {
+        Ok(_) => {}
+        Err(e) => {
+            result.errors.push(format!("Script error: {}", e));
+        }
+    }
+
+    if let Ok(t) = tests.lock() {
+        result.tests = t.clone();
+    }
+    if let Ok(l) = logs.lock() {
+        for log in l.iter() {
+            result.errors.push(format!("[LOG] {}", log));
+        }
+    }
+
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -308,7 +409,7 @@ mod tests {
             "",
             &HashMap::new(),
         );
-        
+
         assert_eq!(result.headers.get("X-Custom"), Some(&"test".to_string()));
         assert_eq!(result.variables.get("my_var"), Some(&"hello".to_string()));
     }
@@ -326,7 +427,28 @@ mod tests {
             "",
             &HashMap::new(),
         );
-        
+
         assert!(result.headers.contains_key("X-Timestamp"));
+    }
+
+    #[test]
+    fn test_post_script() {
+        let mut headers = HashMap::new();
+        headers.insert("Content-Type".to_string(), "application/json".to_string());
+
+        let result = run_post_script(
+            r#"
+             test("Status is 200", status_code() == 200);
+             test("Is JSON", get_header("Content-Type") == "application/json");
+             "#,
+            200,
+            "{}",
+            &headers,
+            100,
+        );
+
+        assert_eq!(result.tests.len(), 2);
+        assert_eq!(result.tests[0], ("Status is 200".to_string(), true));
+        assert_eq!(result.tests[1], ("Is JSON".to_string(), true));
     }
 }

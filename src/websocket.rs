@@ -1,6 +1,6 @@
 use futures_util::{SinkExt, StreamExt};
 use std::sync::Arc;
-use tokio::sync::{mpsc, Mutex};
+use tokio::sync::{Mutex, mpsc};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 /// Represents a WebSocket message in the history

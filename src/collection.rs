@@ -17,7 +17,10 @@ pub struct RequestConfig {
     pub graphql_variables: Option<String>,
     #[serde(default)]
     pub expected_status: Option<u16>,
+    #[serde(default)]
+    pub timeout_ms: Option<u64>,
     pub pre_request_script: Option<String>,
+    pub post_request_script: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -27,8 +30,6 @@ pub struct Collection {
 }
 
 impl Collection {
-    // ... (load_from_dir stays the same, it derives Deserialize)
-
     pub fn load_from_dir(dir: &str) -> std::io::Result<Vec<Collection>> {
         let path = Path::new(dir);
         if !path.exists() {
@@ -98,6 +99,7 @@ request "JSONPlaceholder" {
         graphql_query: &str,
         graphql_variables: &str,
         pre_request_script: &str,
+        post_request_script: &str,
     ) -> std::io::Result<()> {
         let path = Path::new("collections/saved.hcl");
 
@@ -146,6 +148,11 @@ request "JSONPlaceholder" {
         } else {
             Some(pre_request_script.to_string())
         };
+        let post_request_script_opt = if post_request_script.trim().is_empty() {
+            None
+        } else {
+            Some(post_request_script.to_string())
+        };
 
         let config = RequestConfig {
             url: url.to_string(),
@@ -158,7 +165,9 @@ request "JSONPlaceholder" {
             graphql_query: graphql_query_opt,
             graphql_variables: graphql_variables_opt,
             expected_status: None,
+            timeout_ms: None,
             pre_request_script: pre_request_script_opt,
+            post_request_script: post_request_script_opt,
         };
 
         let body_hcl = hcl::to_string(&config)
