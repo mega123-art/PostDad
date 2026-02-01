@@ -864,9 +864,14 @@ impl App {
 
 
     pub fn generate_docs(&mut self) {
-        match crate::doc_gen::save_docs(&self.collections) {
-            Ok(path) => self.show_notification(format!("Docs Generated: {}", path)),
-            Err(e) => self.show_notification(format!("Docs Error: {}", e)),
+        let md_res = crate::doc_gen::save_docs(&self.collections);
+        let html_res = crate::doc_gen::save_html_docs(&self.collections);
+        
+        match (md_res, html_res) {
+            (Ok(md_path), Ok(html_path)) => self.show_notification(format!("Docs Generated: {}, {}", md_path, html_path)),
+            (Ok(md_path), Err(_)) => self.show_notification(format!("Docs Generated: {} (HTML failed)", md_path)),
+            (Err(_), Ok(html_path)) => self.show_notification(format!("Docs Generated: {} (MD failed)", html_path)),
+            (Err(e1), Err(e2)) => self.show_notification(format!("Docs Error: MD:{}, HTML:{}", e1, e2)),
         }
     }
 
