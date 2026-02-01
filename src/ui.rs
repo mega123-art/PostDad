@@ -1386,6 +1386,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             "  Ctrl+w     Toggle WebSocket Mode",
             "  Ctrl+r     Toggle Collection Runner",
             "  Ctrl+k     Mock Server Manager",
+            "  Ctrl+j     Cookie Manager",
             "",
             "gRPC (Body Tab -> 'm' to gRPC mode):",
             "  u          Edit Service/Method",
