@@ -1,5 +1,8 @@
 use crate::app::{App, InputMode, JsonEntry};
-use crate::ui_sentinel::render_sentinel_mode;
+use crate::ui::sentinel::render_sentinel_mode;
+pub mod syntax;
+pub mod sentinel;
+
 use ratatui_image::StatefulImage;
 use similar::{ChangeTag, TextDiff};
 use ratatui::{
@@ -533,7 +536,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
         f.render_widget(url_bar, right_col[1]);
 
         if app.active_tab().input_mode == InputMode::Editing {
-            let x = right_col[1].x + 1 + (app.active_tab().method.len() as u16 + 2) + 1 + app.active_tab().url.len() as u16;
+            let script_offset = if !app.active_tab().pre_request_script.trim().is_empty() { 3 } else { 0 };
+            let x = right_col[1].x + 1 + (app.active_tab().method.len() as u16 + 2) + script_offset + 1 + app.active_tab().url_cursor_index as u16;
             let y = right_col[1].y + 1;
             f.set_cursor_position((x, y));
         }
@@ -638,7 +642,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                                 "txt"
                             };
 
-                            let highlighted = crate::syntax::highlight(&body_txt, ext);
+                            let highlighted = crate::ui::syntax::highlight(&body_txt, ext);
 
                             f.render_widget(
                                 Paragraph::new(highlighted)
@@ -756,7 +760,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                             } else {
                                 graphql_variables
                             };
-                            let highlighted_vars = crate::syntax::highlight(&vars_txt, "json");
+                            let highlighted_vars = crate::ui::syntax::highlight(&vars_txt, "json");
                             f.render_widget(
                                 Paragraph::new(highlighted_vars)
                                     .block(
@@ -1283,7 +1287,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             
             // Highlight response
             let ext = app.guess_extension().unwrap_or("txt".to_string());
-            let highlighted = crate::syntax::highlight(&content, &ext);
+            let highlighted = crate::ui::syntax::highlight(&content, &ext);
 
             let scroll = app.active_tab().response_scroll;
 
@@ -2206,7 +2210,7 @@ fn render_grpc_description_modal(f: &mut Frame, app: &mut App) {
     let desc = app.active_tab().grpc_service_description.clone();
     
     // Syntax highlight the proto description
-    let highlighted = crate::syntax::highlight(&desc, "protobuf");
+    let highlighted = crate::ui::syntax::highlight(&desc, "protobuf");
     
     let paragraph = Paragraph::new(highlighted)
         .wrap(Wrap { trim: false })

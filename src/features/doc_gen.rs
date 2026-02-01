@@ -1,4 +1,4 @@
-use crate::collection::Collection;
+use crate::domain::collection::Collection;
 use std::fs;
 
 pub fn generate_markdown(collections: &[Collection]) -> String {

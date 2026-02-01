@@ -196,6 +196,7 @@ pub struct RequestTab {
 
     // Core Request
     pub url: String,
+    pub url_cursor_index: usize,
     pub method: String,
     pub input_mode: InputMode,
     pub request_body: String,
@@ -267,7 +268,7 @@ pub struct RequestTab {
     pub app_mode: AppMode,
     pub ws_url: String,
     pub ws_message_input: String,
-    pub ws_messages: Vec<crate::websocket::WsMessage>,
+    pub ws_messages: Vec<crate::net::websocket::WsMessage>,
     pub ws_connected: bool,
     pub ws_scroll: usize,
 }
@@ -277,6 +278,7 @@ impl RequestTab {
         RequestTab {
             name: "New Request".to_string(),
             url: String::from("https://api.github.com/zen"), // Default for TAB 1
+            url_cursor_index: 0,
             method: String::from("GET"),
             input_mode: InputMode::Normal,
 
@@ -367,13 +369,13 @@ pub struct App {
     pub spinner_state: usize,
     pub popup_message: Option<String>,
 
-    pub collections: Vec<Collection>,
+    pub collections: Vec<crate::domain::collection::Collection>,
     pub collection_state: ListState,
     pub active_sidebar: bool,
     pub sidebar_filter: String,
     pub show_sidebar_filter: bool,
 
-    pub environments: Vec<Environment>,
+    pub environments: Vec<crate::domain::environment::Environment>,
     pub selected_env_index: usize,
 
     pub request_history: Vec<RequestLog>,
@@ -404,7 +406,7 @@ pub struct App {
 
     // Collection Runner (Global)
     pub runner_mode: bool,
-    pub runner_result: Option<crate::runner::CollectionRunResult>,
+    pub runner_result: Option<crate::features::runner::CollectionRunResult>,
     pub runner_scroll: usize,
 
     // Splash screen
@@ -424,9 +426,9 @@ pub struct App {
     pub mock_mode: bool,
     pub mock_server_running: bool,
     pub mock_server_port: u16,
-    pub mock_routes: Vec<crate::mock_server::MockRoute>,
+    pub mock_routes: Vec<crate::net::mock_server::MockRoute>,
     pub mock_list_state: ListState,
-    pub mock_server_handle: Option<crate::mock_server::MockServerHandle>,
+    pub mock_server_handle: Option<crate::net::mock_server::MockServerHandle>,
     pub image_picker: Option<Picker>,
     pub clipboard: Option<Clipboard>,
 
@@ -435,7 +437,7 @@ pub struct App {
     pub stress_vus_input: String,
     pub stress_duration_input: String,
     pub stress_running: bool,
-    pub stress_stats: Option<crate::stress::StressStats>,
+    pub stress_stats: Option<crate::features::stress::StressStats>,
     pub stress_progress: Option<(u64, u64)>,
     pub should_run_stress_test: bool,
 
@@ -456,7 +458,7 @@ pub struct App {
 
     // Sentinel Mode
     pub sentinel_mode: bool,
-    pub sentinel_state: Option<crate::sentinel::SentinelState>,
+    pub sentinel_state: Option<crate::features::sentinel::SentinelState>,
     pub should_start_sentinel: bool,
     pub sentinel_interval_input: String,
 }
@@ -468,8 +470,8 @@ struct AppConfig {
     zen_mode: bool,
 }
 
-use crate::collection::Collection;
-use crate::environment::Environment;
+use crate::domain::collection::Collection;
+use crate::domain::environment::Environment;
 use arboard::Clipboard;
 use ratatui::widgets::ListState;
 
@@ -570,7 +572,7 @@ impl App {
             curl_import_input: String::new(),
             
             sentinel_mode: false,
-            sentinel_state: Some(crate::sentinel::SentinelState::new()),
+            sentinel_state: Some(crate::features::sentinel::SentinelState::new()),
             should_start_sentinel: false,
             sentinel_interval_input: "2".to_string(),
         };
@@ -898,8 +900,8 @@ impl App {
 
 
     pub fn generate_docs(&mut self) {
-        let md_res = crate::doc_gen::save_docs(&self.collections);
-        let html_res = crate::doc_gen::save_html_docs(&self.collections);
+        let md_res = crate::features::doc_gen::save_docs(&self.collections);
+        let html_res = crate::features::doc_gen::save_html_docs(&self.collections);
         
         match (md_res, html_res) {
             (Ok(md_path), Ok(html_path)) => self.show_notification(format!("Docs Generated: {}, {}", md_path, html_path)),
@@ -913,7 +915,7 @@ impl App {
         if self.mock_server_running {
             return;
         }
-        let handle = crate::mock_server::start_mock_server(self.mock_server_port, self.mock_routes.clone());
+        let handle = crate::net::mock_server::start_mock_server(self.mock_server_port, self.mock_routes.clone());
         self.mock_server_handle = Some(handle);
         self.mock_server_running = true;
         self.show_notification(format!("Mock Server Starting on port {}", self.mock_server_port));
@@ -1073,8 +1075,7 @@ impl App {
 
                         if let Some(body_text) = &log.body {
                             if let Ok(val) = serde_json::from_str::<Value>(body_text) {
-                                let root =
-                                    crate::app::JsonEntry::from_value("root".to_string(), &val, 0);
+                                let root = crate::app::JsonEntry::from_value("root".to_string(), &val, 0);
                                 tab.response_json = Some(vec![root]);
                             } else {
                                 tab.response_json = None;
@@ -1121,7 +1122,7 @@ impl App {
     pub fn get_request_at_visual_index(
         &self,
         visual_index: usize,
-    ) -> Option<(&String, &crate::collection::RequestConfig)> {
+    ) -> Option<(&String, &crate::domain::collection::RequestConfig)> {
         let mut current = 1;
         for col in &self.collections {
             let mut keys: Vec<&String> = col.requests.keys().collect();

@@ -172,6 +172,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 app.active_tab_mut().input_mode = InputMode::Normal;
                 app.should_run_stress_test = true;
             }
+
             KeyCode::Tab => {
                 if app.active_tab().input_mode == InputMode::EditingStressVUs {
                     app.active_tab_mut().input_mode = InputMode::EditingStressDuration;
@@ -322,7 +323,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             KeyCode::Char('s') => app.toggle_mock_server(),
             KeyCode::Char('a') => {
                  // Add new mock route
-                 app.mock_routes.push(crate::mock_server::MockRoute {
+                 app.mock_routes.push(crate::net::mock_server::MockRoute {
                      path: "/api/new".to_string(),
                      method: "GET".to_string(),
                      status: 200,
@@ -653,7 +654,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                             std::process::exit(0);
                         }
                         "Export HTML Docs" => {
-                            if let Err(e) = crate::doc_gen::save_html_docs(&app.collections) {
+                            if let Err(e) = crate::features::doc_gen::save_html_docs(&app.collections) {
                                 app.active_tab_mut().response = Some(format!("Error saving docs: {}", e));
                             } else {
                                 app.popup_message = Some("Documentation saved to API_DOCS.html".to_string());
@@ -787,6 +788,8 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 }
 
                 if !handled {
+                    let len = app.active_tab().url.len();
+                    app.active_tab_mut().url_cursor_index = len;
                     app.active_tab_mut().input_mode = InputMode::Editing;
                 }
             }
@@ -1258,11 +1261,44 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             KeyCode::Tab => {
                 app.cycle_method();
             }
+            KeyCode::Left => {
+                let current = app.active_tab().url_cursor_index;
+                if current > 0 {
+                    app.active_tab_mut().url_cursor_index = current - 1;
+                }
+            }
+            KeyCode::Right => {
+                let current = app.active_tab().url_cursor_index;
+                let len = app.active_tab().url.len();
+                if current < len {
+                    app.active_tab_mut().url_cursor_index = current + 1;
+                }
+            }
+            KeyCode::Home => {
+                app.active_tab_mut().url_cursor_index = 0;
+            }
+            KeyCode::End => {
+                let len = app.active_tab().url.len();
+                app.active_tab_mut().url_cursor_index = len;
+            }
             KeyCode::Char(c) => {
-                app.active_tab_mut().url.push(c);
+                let idx = app.active_tab().url_cursor_index;
+                app.active_tab_mut().url.insert(idx, c);
+                app.active_tab_mut().url_cursor_index += 1;
             }
             KeyCode::Backspace => {
-                app.active_tab_mut().url.pop();
+                let idx = app.active_tab().url_cursor_index;
+                if idx > 0 {
+                    app.active_tab_mut().url.remove(idx - 1);
+                    app.active_tab_mut().url_cursor_index -= 1;
+                }
+            }
+            KeyCode::Delete => {
+                let idx = app.active_tab().url_cursor_index;
+                let len = app.active_tab().url.len();
+                if idx < len {
+                    app.active_tab_mut().url.remove(idx);
+                }
             }
             KeyCode::Esc => {
                 app.active_tab_mut().input_mode = InputMode::Normal;

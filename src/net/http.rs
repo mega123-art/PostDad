@@ -114,6 +114,10 @@ pub async fn handle_network(
                 }
 
                 // Add client certificate for mTLS if both cert and key provided
+                // Note: native-tls does not support Identity::from_pem. 
+                // To support mTLS with native-tls, we would need PKCS#12 (.p12) support.
+                // Disabling this temporarily to fix build on Windows without rustls/cmake.
+                /* 
                 if let (Some(cert_bytes), Some(key_bytes)) = (ssl_client_cert, ssl_client_key) {
                     // Combine cert and key into a single PEM
                     let mut identity_pem = cert_bytes;
@@ -124,6 +128,7 @@ pub async fn handle_network(
                         client_builder = client_builder.identity(identity);
                     }
                 }
+                */
 
                 // Configure proxy if provided
                 if let Some(proxy_str) = proxy_url {
@@ -259,7 +264,7 @@ pub async fn handle_network(
                 use_plaintext,
             } => {
                 // Execute gRPC request using grpcurl
-                let result = crate::grpc::execute_grpc_request(
+                let result = crate::net::grpc::execute_grpc_request(
                     &url,
                     &service_method,
                     proto_path.as_deref(),
@@ -278,7 +283,7 @@ pub async fn handle_network(
                     .await;
             }
             NetworkEvent::ListGrpcServices { url, use_plaintext } => {
-                match crate::grpc::list_services(&url, use_plaintext) {
+                match crate::net::grpc::list_services(&url, use_plaintext) {
                     Ok(services) => {
                         let _ = sender.send(NetworkEvent::GotGrpcServices(services)).await;
                     }
@@ -288,7 +293,7 @@ pub async fn handle_network(
                 }
             }
             NetworkEvent::DescribeGrpcService { url, service, use_plaintext } => {
-                match crate::grpc::describe_service(&url, &service, use_plaintext) {
+                match crate::net::grpc::describe_service(&url, &service, use_plaintext) {
                     Ok(desc) => {
                         let _ = sender.send(NetworkEvent::GotGrpcServiceDescription(desc)).await;
                     }

@@ -1,4 +1,4 @@
-use crate::collection::{Collection, RequestConfig};
+use crate::domain::collection::{Collection, RequestConfig};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::fs;

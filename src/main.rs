@@ -1,5 +1,5 @@
 use crate::app::{App, InputMode};
-use crate::network::{NetworkEvent, handle_network};
+use crate::net::http::{NetworkEvent, handle_network};
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
@@ -12,34 +12,26 @@ use serde_json::Value;
 use std::io;
 use tokio::sync::mpsc;
 mod app;
-mod cli;
-mod collection;
-mod environment;
-mod doc_gen;
-mod handler;
-mod import;
-mod mock_server;
-mod network;
-mod runner;
-mod scripting;
-mod syntax;
+
 mod ui;
-mod grpc;
-mod websocket;
-mod stress;
-mod sentinel;
-mod ui_sentinel;
+mod net;
+mod domain;
+mod features;
+mod handler; 
+mod tests;
+
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize syntax highlighting
-    syntax::init();
+    // Initialize syntax highlighting
+    ui::syntax::init();
 
     // Parse CLI arguments
-    if let Some(action) = cli::parse_args() {
+    if let Some(action) = features::cli::parse_args() {
         match action {
-            cli::CliAction::Import(path) => {
-                match import::import_auto(&path) {
+            features::cli::CliAction::Import(path) => {
+                match features::import::import_auto(&path) {
                     Ok(_) => std::process::exit(0),
                     Err(e) => {
                         eprintln!("Import error: {}", e);
@@ -47,8 +39,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
             }
-            cli::CliAction::Run(args) => {
-                let exit_code = cli::run_collection_cli(args).await;
+            features::cli::CliAction::Run(args) => {
+                let exit_code = features::cli::run_collection_cli(args).await;
                 std::process::exit(exit_code);
             }
         }
@@ -59,17 +51,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (network_tx, mut ui_rx) = mpsc::channel(32);
 
     // WebSocket event channels
-    let (ws_event_tx, mut ws_event_rx) = mpsc::channel::<websocket::WsEvent>(32);
-    let ws_handle = websocket::spawn_ws_handler(ws_event_tx);
+    let (ws_event_tx, mut ws_event_rx) = mpsc::channel::<crate::net::websocket::WsEvent>(32);
+    let ws_handle = crate::net::websocket::spawn_ws_handler(ws_event_tx);
 
     // Runner event channel
-    let (runner_tx, mut runner_rx) = mpsc::channel::<runner::RunnerEvent>(32);
+    let (runner_tx, mut runner_rx) = mpsc::channel::<crate::features::runner::RunnerEvent>(32);
 
     // Stress event channel
-    let (stress_tx, mut stress_rx) = mpsc::channel::<crate::stress::StressEvent>(32);
+    let (stress_tx, mut stress_rx) = mpsc::channel::<features::stress::StressEvent>(32);
 
     // Sentinel event channel
-    let (sentinel_tx, mut sentinel_rx) = mpsc::channel::<crate::sentinel::SentinelResult>(32);
+    let (sentinel_tx, mut sentinel_rx) = mpsc::channel::<features::sentinel::SentinelResult>(32);
+
 
     tokio::spawn(async move {
         handle_network(network_rx, network_tx).await;
@@ -462,7 +455,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let script_content = app.active_tab().post_request_script.clone();
                         
                         if !script_content.trim().is_empty() {
-                            let result = scripting::run_post_script(
+                            let result = crate::features::scripting::run_post_script(
                                 &script_content,
                                 status,
                                 text_content,
@@ -545,17 +538,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Handle WebSocket events
         while let Ok(ws_event) = ws_event_rx.try_recv() {
             match ws_event {
-                websocket::WsEvent::Connected => {
+                crate::net::websocket::WsEvent::Connected => {
                     app.active_tab_mut().ws_connected = true;
                     app.show_notification("WebSocket Connected!".to_string());
                 }
-                websocket::WsEvent::Disconnected => {
+                crate::net::websocket::WsEvent::Disconnected => {
                     app.active_tab_mut().ws_connected = false;
                     app.show_notification("WebSocket Disconnected".to_string());
                 }
-                websocket::WsEvent::Message(msg) => {
+                crate::net::websocket::WsEvent::Message(msg) => {
                     let tab = app.active_tab_mut();
-                    tab.ws_messages.push(websocket::WsMessage {
+                    tab.ws_messages.push(crate::net::websocket::WsMessage {
                         content: msg,
                         is_sent: false,
                         timestamp: std::time::Instant::now(),
@@ -565,7 +558,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         tab.ws_messages.remove(0);
                     }
                 }
-                websocket::WsEvent::Error(e) => {
+                crate::net::websocket::WsEvent::Error(e) => {
                     app.show_notification(format!("WS Error: {}", e));
                 }
             }
@@ -574,29 +567,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Handle Runner events
         while let Ok(runner_event) = runner_rx.try_recv() {
             match runner_event {
-                runner::RunnerEvent::Started {
+                crate::features::runner::RunnerEvent::Started {
                     collection_name,
                     total,
                 } => {
                     app.runner_result =
-                        Some(runner::CollectionRunResult::new(&collection_name, total));
+                        Some(crate::features::runner::CollectionRunResult::new(&collection_name, total));
                     app.show_notification(format!(
                         "Running {} ({} requests)...",
                         collection_name, total
                     ));
                 }
-                runner::RunnerEvent::RequestStarted { name: _name, index } => {
+                crate::features::runner::RunnerEvent::RequestStarted { name: _name, index } => {
                     // Update current progress
                     if let Some(ref mut result) = app.runner_result {
                         result.current_index = index;
                     }
                 }
-                runner::RunnerEvent::RequestCompleted(run_result) => {
+                crate::features::runner::RunnerEvent::RequestCompleted(run_result) => {
                     if let Some(ref mut result) = app.runner_result {
                         result.add_result(run_result);
                     }
                 }
-                runner::RunnerEvent::Finished(final_result) => {
+                crate::features::runner::RunnerEvent::Finished(final_result) => {
                     let passed = final_result.passed;
                     let failed = final_result.failed;
                     let total = final_result.total;
@@ -606,7 +599,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         passed, total, failed
                     ));
                 }
-                runner::RunnerEvent::Error(e) => {
+                crate::features::runner::RunnerEvent::Error(e) => {
                     app.show_notification(format!("Runner Error: {}", e));
                 }
             }
@@ -615,15 +608,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Handle Stress events
         while let Ok(stress_event) = stress_rx.try_recv() {
             match stress_event {
-                crate::stress::StressEvent::Progress { requests_done, elapsed_secs } => {
+                crate::features::stress::StressEvent::Progress { requests_done, elapsed_secs } => {
                      app.stress_progress = Some((requests_done, elapsed_secs));
                 }
-                crate::stress::StressEvent::Finished(stats) => {
+                crate::features::stress::StressEvent::Finished(stats) => {
                      app.stress_running = false;
                      app.stress_stats = Some(stats);
                      app.show_notification("Stress Test Completed".to_string());
                 }
-                crate::stress::StressEvent::Error(e) => {
+                crate::features::stress::StressEvent::Error(e) => {
                      app.stress_running = false;
                      app.show_notification(format!("Stress Test Failed: {}", e));
                 }
@@ -664,7 +657,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
 
                     let interval_val = app.sentinel_interval_input.parse::<u64>().unwrap_or(2);
-                    let config = crate::sentinel::SentinelConfig {
+                    let config = crate::features::sentinel::SentinelConfig {
                         url: app.process_url(),
                         method: tab.method.clone(),
                         headers,
@@ -680,7 +673,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                          state.stop_tx = Some(stop_tx);
                          state.is_running = true;
                          
-                         tokio::spawn(crate::sentinel::run_sentinel_task(config, tx, stop_rx));
+                         tokio::spawn(crate::features::sentinel::run_sentinel_task(config, tx, stop_rx));
                     }
                 }
 
@@ -695,7 +688,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let vus = app.stress_vus_input.parse().unwrap_or(50);
                     let duration = app.stress_duration_input.parse().unwrap_or(10);
                     
-                    let config = crate::stress::StressConfig {
+                    let config = crate::features::stress::StressConfig {
                         url: app.process_url(),
                         method: tab.method.clone(),
                         headers: tab.request_headers.clone(), // Note: Auth handling skipped for brevity, user should set headers
@@ -706,7 +699,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     
                     let tx = stress_tx.clone();
                     app.show_notification(format!("Starting Stress Test ({} VUs, {}s)...", vus, duration));
-                    tokio::spawn(crate::stress::run_stress_test(config, tx));
+                    tokio::spawn(crate::features::stress::run_stress_test(config, tx));
                 }
 
                 if app.active_tab().should_introspect_schema {
@@ -806,7 +799,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             app.runner_scroll = 0;
 
                             tokio::spawn(async move {
-                                runner::run_collection(&collection, &env_vars, runner_tx_clone)
+                                crate::features::runner::run_collection(&collection, &env_vars, runner_tx_clone)
                                     .await;
                             });
                         }
@@ -824,14 +817,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         
                         if !msg.is_empty() && connected {
                             let tab = app.active_tab_mut();
-                            tab.ws_messages.push(websocket::WsMessage {
+                            tab.ws_messages.push(crate::net::websocket::WsMessage {
                                 content: msg.clone(),
                                 is_sent: true,
                                 timestamp: std::time::Instant::now(),
                             });
                             let _ = ws_handle
                                 .command_tx
-                                .send(websocket::WsCommand::Send(msg))
+                                .send(crate::net::websocket::WsCommand::Send(msg))
                                 .await;
                             app.active_tab_mut().ws_message_input.clear();
                         }
@@ -840,13 +833,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if app.active_tab().ws_connected {
                             let _ = ws_handle
                                 .command_tx
-                                .send(websocket::WsCommand::Disconnect)
+                                .send(crate::net::websocket::WsCommand::Disconnect)
                                 .await;
                         } else {
                             let url = app.active_tab().ws_url.clone();
                             let _ = ws_handle
                                 .command_tx
-                                .send(websocket::WsCommand::Connect(url))
+                                .send(crate::net::websocket::WsCommand::Connect(url))
                                 .await;
                         }
                     }
@@ -890,14 +883,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let auth = match tab.auth_type {
                         crate::app::AuthType::Bearer => {
                             if !tab.auth_token.is_empty() {
-                                Some(crate::network::AuthPayload::Bearer(tab.auth_token.clone()))
+                                Some(crate::net::http::AuthPayload::Bearer(tab.auth_token.clone()))
                             } else {
                                 None
                             }
                         }
                         crate::app::AuthType::Basic => {
                             if !tab.basic_auth_user.is_empty() || !tab.basic_auth_pass.is_empty() {
-                                Some(crate::network::AuthPayload::Basic(
+                                Some(crate::net::http::AuthPayload::Basic(
                                     tab.basic_auth_user.clone(),
                                     tab.basic_auth_pass.clone(),
                                 ))
@@ -908,7 +901,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         crate::app::AuthType::None => None,
                         crate::app::AuthType::OAuth2 => {
                             if !tab.auth_token.is_empty() {
-                                Some(crate::network::AuthPayload::Bearer(tab.auth_token.clone()))
+                                Some(crate::net::http::AuthPayload::Bearer(tab.auth_token.clone()))
                             } else {
                                 None
                             }
@@ -946,7 +939,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         let script_content = app.active_tab().pre_request_script.clone();
                         let method = app.active_tab().method.clone();
 
-                        let script_result = scripting::run_script(
+                        let script_result = crate::features::scripting::run_script(
                             &script_content,
                             &method,
                             &final_url,

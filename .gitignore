@@ -1,1 +1,3 @@
 /target
+*.hcl
+*.json
