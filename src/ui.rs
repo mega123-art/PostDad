@@ -1418,6 +1418,9 @@ pub fn render(f: &mut Frame, app: &mut App) {
     if app.active_tab().input_mode == crate::app::InputMode::ImportCurl {
         render_curl_import_modal(f, app);
     }
+    if app.show_cookie_modal {
+        render_cookie_modal(f, app);
+    }
 }
 
 fn render_runner_mode(f: &mut Frame, app: &mut App) {
@@ -2416,6 +2419,50 @@ fn render_curl_import_modal(f: &mut Frame, app: &mut App) {
     ];
     let help = Paragraph::new(help_text).alignment(Alignment::Center);
     f.render_widget(help, chunks[2]);
+}
+
+fn render_cookie_modal(f: &mut Frame, app: &mut App) {
+    let area = centered_rect(70, 70, f.area());
+    f.render_widget(ratatui::widgets::Clear, area);
+    
+    let block = Block::default()
+        .title(" Manage Cookies ")
+        .title_bottom(" d: Delete | Esc: Close ")
+        .borders(Borders::ALL)
+        .border_type(BorderType::Double)
+        .style(Style::default().fg(app.theme.accent));
+
+    f.render_widget(block.clone(), area);
+
+    let inner_area = block.inner(area);
+    let cookies = app.get_flattened_cookies();
+
+    let items: Vec<ListItem> = cookies.iter().enumerate().map(|(i, (host, val))| {
+        let style = if Some(i) == app.cookie_list_state.selected() {
+            Style::default().fg(app.theme.highlight).add_modifier(Modifier::BOLD)
+        } else {
+            Style::default().fg(app.theme.text_primary)
+        };
+        
+        // Truncate value if too long
+        let display_val = if val.len() > 50 {
+            format!("{}...", &val[0..47])
+        } else {
+            val.clone()
+        };
+
+        ListItem::new(Line::from(vec![
+            Span::styled(format!(" [{}] ", host), Style::default().fg(Color::Yellow)),
+            Span::styled(display_val, style),
+        ]))
+    }).collect();
+
+    let list = List::new(items)
+        .block(Block::default().borders(Borders::NONE))
+        .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
+        .highlight_symbol("> ");
+    
+    f.render_stateful_widget(list, inner_area, &mut app.cookie_list_state);
 }
 
 fn render_stress_running_overlay(f: &mut Frame, app: &mut App) {

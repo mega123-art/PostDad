@@ -391,6 +391,10 @@ pub struct App {
     pub command_index: usize,
     pub command_input: String,
 
+    
+    pub show_cookie_modal: bool,
+    pub cookie_list_state: ListState,
+
     pub cookie_jar: std::collections::HashMap<String, Vec<String>>,
 
     // Tabs
@@ -540,6 +544,9 @@ impl App {
             stress_progress: None,
             should_run_stress_test: false,
 
+            show_cookie_modal: false,
+            cookie_list_state: ListState::default(),
+
             // SSL: Load from environment variables or use defaults
             ssl_verify: std::env::var("POSTDAD_SSL_VERIFY")
                 .map(|v| v != "false" && v != "0")
@@ -581,6 +588,7 @@ impl App {
         }
 
         app.cookie_jar = App::load_cookies();
+        app.request_history = App::load_history();
         
         // Apply loaded theme
         app.apply_theme();
@@ -688,6 +696,32 @@ impl App {
             }
         }
         None
+    }
+
+    pub fn get_flattened_cookies(&self) -> Vec<(String, String)> {
+        let mut flattened = Vec::new();
+        for (host, cookies) in &self.cookie_jar {
+            for cookie in cookies {
+                flattened.push((host.clone(), cookie.clone()));
+            }
+        }
+        flattened.sort_by(|a, b| a.0.cmp(&b.0));
+        flattened
+    }
+
+    pub fn delete_cookie_at_index(&mut self, index: usize) {
+        let flattened = self.get_flattened_cookies();
+        if let Some((host, cookie_val)) = flattened.get(index) {
+            if let Some(cookies) = self.cookie_jar.get_mut(host) {
+                if let Some(pos) = cookies.iter().position(|c| c == cookie_val) {
+                    cookies.remove(pos);
+                    if cookies.is_empty() {
+                        self.cookie_jar.remove(host);
+                    }
+                    self.save_cookies();
+                }
+            }
+        }
     }
 
     pub fn should_open_editor(&self) -> bool {
@@ -2065,6 +2099,7 @@ pub fn get_available_commands() -> Vec<CommandAction> {
         CommandAction { name: "Filter Collections", desc: "Search/Filter sidebar" },
         CommandAction { name: "Clear History", desc: "Clear request history" },
         CommandAction { name: "Clear Cookies", desc: "Clear all saved cookies" },
+        CommandAction { name: "Manage Cookies", desc: "View and delete cookies" },
         CommandAction { name: "Export HTML Docs", desc: "Generate API_DOCS.html" },
         CommandAction { name: "Help", desc: "Show keyboard shortcuts" },
         CommandAction { name: "Quit", desc: "Exit Application" },

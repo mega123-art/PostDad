@@ -120,6 +120,44 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             }
             _ => {}
         }
+    }
+    
+    // Cookie Manager Modal
+    if app.show_cookie_modal {
+        match key_event.code {
+            KeyCode::Esc => {
+                app.show_cookie_modal = false;
+            }
+            KeyCode::Char('j') | KeyCode::Down => {
+                let current = app.cookie_list_state.selected().unwrap_or(0);
+                let count = app.get_flattened_cookies().len();
+                if count > 0 {
+                    let next = (current + 1) % count;
+                    app.cookie_list_state.select(Some(next));
+                }
+            }
+            KeyCode::Char('k') | KeyCode::Up => {
+                let current = app.cookie_list_state.selected().unwrap_or(0);
+                let count = app.get_flattened_cookies().len();
+                if count > 0 {
+                    let next = if current == 0 { count - 1 } else { current - 1 };
+                    app.cookie_list_state.select(Some(next));
+                }
+            }
+            KeyCode::Char('d') | KeyCode::Delete => {
+                if let Some(selected) = app.cookie_list_state.selected() {
+                    app.delete_cookie_at_index(selected);
+                    // Adjust selection if needed
+                    let count = app.get_flattened_cookies().len();
+                    if count == 0 {
+                        app.cookie_list_state.select(None);
+                    } else if selected >= count {
+                        app.cookie_list_state.select(Some(count - 1));
+                    }
+                }
+            }
+            _ => {}
+        }
         return;
     }
 
@@ -573,6 +611,11 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                         }
                         "Clear Cookies" => {
                             app.clear_cookies();
+                        }
+                        "Manage Cookies" => {
+                            app.show_cookie_modal = true;
+                            app.show_command_palette = false;
+                            return;
                         }
                         "Save Request" => {
                             // Saving requires another modal usually (input name/collection)
