@@ -70,3 +70,285 @@ pub fn save_docs(collections: &[Collection]) -> std::io::Result<String> {
     fs::write(path, md)?;
     Ok(path.to_string())
 }
+
+pub fn generate_html(collections: &[Collection]) -> String {
+    let mut html = String::new();
+    
+    // Header & CSS
+    html.push_str(r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PostDad API Documentation</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e2e;
+            --bg-secondary: #252538;
+            --text-primary: #cdd6f4;
+            --text-secondary: #a6adc8;
+            --accent: #89b4fa;
+            --accent-hover: #b4befe;
+            --border: #45475a;
+            --code-bg: #11111b;
+            --success: #a6e3a1;
+            --method-get: #a6e3a1;
+            --method-post: #f9e2af;
+            --method-put: #89b4fa;
+            --method-delete: #f38ba8;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background-color: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .logo {
+            padding: 20px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            border-bottom: 1px solid var(--border);
+            color: var(--accent);
+            text-align: center;
+        }
+
+        .nav-collection {
+            padding: 15px 20px 5px;
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 10px;
+        }
+
+        .nav-item {
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+        }
+
+        .method-badge {
+            font-size: 0.7rem;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #1e1e2e;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        /* Main Content */
+        .main {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+
+        .endpoint {
+            margin-bottom: 60px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 40px;
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .endpoint-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .endpoint-url {
+            font-family: monospace;
+            background: var(--code-bg);
+            padding: 8px 12px;
+            border-radius: 6px;
+            color: var(--accent);
+            border: 1px solid var(--border);
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 5px;
+            display: inline-block;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        pre {
+            background: var(--code-bg);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid var(--border);
+            color: #a6e3a1;
+        }
+
+        /* Utilities */
+        .get { background-color: var(--method-get); }
+        .post { background-color: var(--method-post); }
+        .put { background-color: var(--method-put); }
+        .delete { background-color: var(--method-delete); }
+        .patch { background-color: var(--accent); }
+    </style>
+</head>
+<body>
+
+<div class="sidebar">
+    <div class="logo">⚡ PostDad Docs</div>
+"#);
+
+    // Generate Sidebar
+    for col in collections {
+        html.push_str(&format!(r#"<div class="nav-collection">{}</div>"#, col.name));
+        let mut sorted_keys: Vec<_> = col.requests.keys().collect();
+        sorted_keys.sort();
+
+        for key in sorted_keys {
+            if let Some(req) = col.requests.get(key) {
+                let method_class = req.method.to_lowercase();
+                let anchor = format!("{}-{}", col.name, key).replace(" ", "-").to_lowercase();
+                
+                html.push_str(&format!(
+                    r##"<a href="#{}" class="nav-item">
+                        <span class="method-badge {}">{}</span>
+                        <span>{}</span>
+                    </a>"##, 
+                    anchor, method_class, req.method, key
+                ));
+            }
+        }
+    }
+
+    html.push_str(r#"</div><div class="main">"#);
+
+    // Generate Content
+    for col in collections {
+        let mut sorted_keys: Vec<_> = col.requests.keys().collect();
+        sorted_keys.sort();
+
+        for key in sorted_keys {
+            if let Some(req) = col.requests.get(key) {
+                let anchor = format!("{}-{}", col.name, key).replace(" ", "-").to_lowercase();
+                let method_class = req.method.to_lowercase();
+
+                html.push_str(&format!(r#"<div id="{}" class="endpoint">"#, anchor));
+                
+                // Title & URL
+                html.push_str(r#"<div class="endpoint-header">"#);
+                html.push_str(&format!(r#"<span class="method-badge {}" style="font-size: 1rem; padding: 5px 10px;">{}</span>"#, method_class, req.method));
+                html.push_str(&format!(r#"<div class="endpoint-title">{}</div>"#, key));
+                html.push_str("</div>");
+                
+                html.push_str(&format!(r#"<div class="endpoint-url">{}</div>"#, req.url));
+
+                // Headers
+                if let Some(headers) = &req.headers {
+                    if !headers.is_empty() {
+                        html.push_str(r#"<div class="section-title">Request Headers</div>"#);
+                        html.push_str("<table><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>");
+                        for (k, v) in headers {
+                            html.push_str(&format!("<tr><td>{}</td><td>{}</td></tr>", k, v));
+                        }
+                        html.push_str("</tbody></table>");
+                    }
+                }
+
+                // Body
+                if let Some(body) = &req.body {
+                    if !body.trim().is_empty() {
+                        html.push_str(r#"<div class="section-title">Request Body</div>"#);
+                        // Simple escaping
+                        let escaped = body.replace("<", "&lt;").replace(">", "&gt;");
+                        html.push_str(&format!("<pre><code>{}</code></pre>", escaped));
+                    }
+                }
+
+                // Form Data
+                if let Some(fd) = &req.form_data {
+                    if !fd.is_empty() {
+                        html.push_str(r#"<div class="section-title">Form Data</div>"#);
+                        html.push_str("<table><thead><tr><th>Key</th><th>Value</th><th>Type</th></tr></thead><tbody>");
+                        for (k, v, is_file) in fd {
+                             let type_str = if *is_file { "File" } else { "Text" };
+                             html.push_str(&format!("<tr><td>{}</td><td>{}</td><td>{}</td></tr>", k, v, type_str));
+                        }
+                        html.push_str("</tbody></table>");
+                    }
+                }
+                
+                // GraphQL
+                if let Some(gql) = &req.graphql_query {
+                    if !gql.trim().is_empty() {
+                         html.push_str(r#"<div class="section-title">GraphQL Query</div>"#);
+                         let escaped = gql.replace("<", "&lt;").replace(">", "&gt;");
+                         html.push_str(&format!("<pre><code>{}</code></pre>", escaped));
+                    }
+                }
+
+                html.push_str("</div>"); // Close endpoint
+            }
+        }
+    }
+
+    html.push_str(r#"</div></body></html>"#);
+    html
+}
+
+pub fn save_html_docs(collections: &[Collection]) -> std::io::Result<String> {
+    let html = generate_html(collections);
+    let path = "API_DOCS.html";
+    fs::write(path, html)?;
+    Ok(path.to_string())
+}

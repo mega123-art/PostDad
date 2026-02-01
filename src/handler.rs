@@ -609,6 +609,13 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                         "Quit" => {
                             std::process::exit(0);
                         }
+                        "Export HTML Docs" => {
+                            if let Err(e) = crate::doc_gen::save_html_docs(&app.collections) {
+                                app.active_tab_mut().response = Some(format!("Error saving docs: {}", e));
+                            } else {
+                                app.popup_message = Some("Documentation saved to API_DOCS.html".to_string());
+                            }
+                        }
                         _ => {}
                     }
                 }

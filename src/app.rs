@@ -2060,6 +2060,7 @@ pub fn get_available_commands() -> Vec<CommandAction> {
         CommandAction { name: "Filter Collections", desc: "Search/Filter sidebar" },
         CommandAction { name: "Clear History", desc: "Clear request history" },
         CommandAction { name: "Clear Cookies", desc: "Clear all saved cookies" },
+        CommandAction { name: "Export HTML Docs", desc: "Generate API_DOCS.html" },
         CommandAction { name: "Help", desc: "Show keyboard shortcuts" },
         CommandAction { name: "Quit", desc: "Exit Application" },
     ]
