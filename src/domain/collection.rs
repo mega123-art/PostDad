@@ -67,13 +67,12 @@ request "JSONPlaceholder" {
 
                 for block in body.blocks() {
                     if block.identifier() == "request"
-                        && let Some(label) = block.labels().first() {
-                            let config: RequestConfig = hcl::from_body(block.body().clone())
-                                .map_err(|e| {
-                                    std::io::Error::new(std::io::ErrorKind::InvalidData, e)
-                                })?;
-                            requests.insert(label.as_str().to_string(), config);
-                        }
+                        && let Some(label) = block.labels().first()
+                    {
+                        let config: RequestConfig = hcl::from_body(block.body().clone())
+                            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+                        requests.insert(label.as_str().to_string(), config);
+                    }
                 }
 
                 let name = path.file_stem().unwrap().to_string_lossy().to_string();
@@ -169,8 +168,7 @@ request "JSONPlaceholder" {
             post_request_script: post_request_script_opt,
         };
 
-        let body_hcl = hcl::to_string(&config)
-            .map_err(std::io::Error::other)?;
+        let body_hcl = hcl::to_string(&config).map_err(std::io::Error::other)?;
 
         let entry = format!("\nrequest \"{}\" {{\n{}\n}}\n", name, body_hcl);
 

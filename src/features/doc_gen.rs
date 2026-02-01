@@ -18,40 +18,48 @@ pub fn generate_markdown(collections: &[Collection]) -> String {
                 md.push_str(&format!("**{}** `{}`\n\n", req.method, req.url));
 
                 if let Some(headers) = &req.headers
-                    && !headers.is_empty() {
-                        md.push_str("#### Headers\n| Key | Value |\n|---|---|\n");
-                        for (k, v) in headers {
-                            md.push_str(&format!("| {} | {} |\n", k, v));
-                        }
-                        md.push('\n');
+                    && !headers.is_empty()
+                {
+                    md.push_str("#### Headers\n| Key | Value |\n|---|---|\n");
+                    for (k, v) in headers {
+                        md.push_str(&format!("| {} | {} |\n", k, v));
                     }
+                    md.push('\n');
+                }
 
                 if let Some(body) = &req.body
-                    && !body.trim().is_empty() {
-                        md.push_str("#### Body\n");
-                        // Attempt to detect language, default to json
-                        let lang = if body.trim().starts_with('<') { "xml" } else { "json" };
-                        md.push_str(&format!("```{}\n", lang));
-                        md.push_str(body);
-                        md.push_str("\n```\n\n");
-                    }
-                
+                    && !body.trim().is_empty()
+                {
+                    md.push_str("#### Body\n");
+                    // Attempt to detect language, default to json
+                    let lang = if body.trim().starts_with('<') {
+                        "xml"
+                    } else {
+                        "json"
+                    };
+                    md.push_str(&format!("```{}\n", lang));
+                    md.push_str(body);
+                    md.push_str("\n```\n\n");
+                }
+
                 if let Some(fd) = &req.form_data
-                    && !fd.is_empty() {
-                        md.push_str("#### Form Data\n| Key | Value | Is File |\n|---|---|---|\n");
-                        for (k, v, is_file) in fd {
-                             md.push_str(&format!("| {} | {} | {} |\n", k, v, is_file));
-                        }
-                         md.push('\n');
+                    && !fd.is_empty()
+                {
+                    md.push_str("#### Form Data\n| Key | Value | Is File |\n|---|---|---|\n");
+                    for (k, v, is_file) in fd {
+                        md.push_str(&format!("| {} | {} | {} |\n", k, v, is_file));
                     }
+                    md.push('\n');
+                }
 
                 if let Some(gql) = &req.graphql_query
-                    && !gql.trim().is_empty() {
-                        md.push_str("#### GraphQL Query\n");
-                        md.push_str("```graphql\n");
-                        md.push_str(gql);
-                        md.push_str("\n```\n\n");
-                    }
+                    && !gql.trim().is_empty()
+                {
+                    md.push_str("#### GraphQL Query\n");
+                    md.push_str("```graphql\n");
+                    md.push_str(gql);
+                    md.push_str("\n```\n\n");
+                }
             }
         }
         md.push_str("---\n\n");
@@ -69,7 +77,7 @@ pub fn save_docs(collections: &[Collection]) -> std::io::Result<String> {
 
 pub fn generate_html(collections: &[Collection]) -> String {
     let mut html = String::new();
-    
+
     // Header & CSS
     html.push_str(r#"<!DOCTYPE html>
 <html lang="en">
@@ -387,20 +395,25 @@ pub fn generate_html(collections: &[Collection]) -> String {
 
     // Generate Sidebar
     for col in collections {
-        html.push_str(&format!(r#"<div class="nav-collection">{}</div>"#, col.name));
+        html.push_str(&format!(
+            r#"<div class="nav-collection">{}</div>"#,
+            col.name
+        ));
         let mut sorted_keys: Vec<_> = col.requests.keys().collect();
         sorted_keys.sort();
 
         for key in sorted_keys {
             if let Some(req) = col.requests.get(key) {
                 let method_class = req.method.to_lowercase();
-                let anchor = format!("{}-{}", col.name, key).replace(" ", "-").to_lowercase();
-                
+                let anchor = format!("{}-{}", col.name, key)
+                    .replace(" ", "-")
+                    .to_lowercase();
+
                 html.push_str(&format!(
                     r##"<a href="#{}" class="nav-item">
                         <span class="method-badge badge-{}">{}</span>
                         <span>{}</span>
-                    </a>"##, 
+                    </a>"##,
                     anchor, method_class, req.method, key
                 ));
             }
@@ -416,19 +429,24 @@ pub fn generate_html(collections: &[Collection]) -> String {
 
         for key in sorted_keys {
             if let Some(req) = col.requests.get(key) {
-                let anchor = format!("{}-{}", col.name, key).replace(" ", "-").to_lowercase();
+                let anchor = format!("{}-{}", col.name, key)
+                    .replace(" ", "-")
+                    .to_lowercase();
                 let method_class = req.method.to_lowercase();
                 let delay = (c_idx * 10).to_string(); // Simple staggered animation
 
-                html.push_str(&format!(r#"<div id="{}" class="endpoint" style="animation-delay: {}ms">"#, anchor, delay));
-                
+                html.push_str(&format!(
+                    r#"<div id="{}" class="endpoint" style="animation-delay: {}ms">"#,
+                    anchor, delay
+                ));
+
                 // Header
                 html.push_str(r#"<div class="endpoint-header">"#);
                 html.push_str(r#"<div class="title-row">"#);
                 html.push_str(&format!(r#"<span class="method-badge badge-{}" style="font-size: 0.9rem; padding: 6px 12px; min-width: 70px;">{}</span>"#, method_class, req.method));
                 html.push_str(&format!(r#"<div class="endpoint-title">{}</div>"#, key));
                 html.push_str("</div>");
-                
+
                 html.push_str(r#"<div class="endpoint-url-container">"#);
                 html.push_str(&format!(r#"<div class="endpoint-url">{}</div>"#, req.url));
                 html.push_str("</div>");
@@ -436,49 +454,59 @@ pub fn generate_html(collections: &[Collection]) -> String {
 
                 // Headers
                 if let Some(headers) = &req.headers
-                    && !headers.is_empty() {
-                        html.push_str(r#"<div class="section"><div class="section-header"><div class="section-title">Request Headers</div><div class="section-line"></div></div>"#);
-                        html.push_str("<table><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>");
-                        for (k, v) in headers {
-                            html.push_str(&format!("<tr><td><code>{}</code></td><td>{}</td></tr>", k, v));
-                        }
-                        html.push_str("</tbody></table></div>");
+                    && !headers.is_empty()
+                {
+                    html.push_str(r#"<div class="section"><div class="section-header"><div class="section-title">Request Headers</div><div class="section-line"></div></div>"#);
+                    html.push_str(
+                        "<table><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>",
+                    );
+                    for (k, v) in headers {
+                        html.push_str(&format!(
+                            "<tr><td><code>{}</code></td><td>{}</td></tr>",
+                            k, v
+                        ));
                     }
+                    html.push_str("</tbody></table></div>");
+                }
 
                 // Body
                 if let Some(body) = &req.body
-                    && !body.trim().is_empty() {
-                        html.push_str(r#"<div class="section"><div class="section-header"><div class="section-title">Request Body</div><div class="section-line"></div></div>"#);
-                        let escaped = body.replace("<", "&lt;").replace(">", "&gt;");
-                        html.push_str(&format!("<pre><code>{}</code></pre></div>", escaped));
-                    }
+                    && !body.trim().is_empty()
+                {
+                    html.push_str(r#"<div class="section"><div class="section-header"><div class="section-title">Request Body</div><div class="section-line"></div></div>"#);
+                    let escaped = body.replace("<", "&lt;").replace(">", "&gt;");
+                    html.push_str(&format!("<pre><code>{}</code></pre></div>", escaped));
+                }
 
                 // Form Data
                 if let Some(fd) = &req.form_data
-                    && !fd.is_empty() {
-                        html.push_str(r#"<div class="section"><div class="section-header"><div class="section-title">Form Data</div><div class="section-line"></div></div>"#);
-                        html.push_str("<table><thead><tr><th>Key</th><th>Value</th><th>Type</th></tr></thead><tbody>");
-                        for (k, v, is_file) in fd {
-                             let type_str = if *is_file { "File" } else { "Text" };
-                             html.push_str(&format!("<tr><td><code>{}</code></td><td>{}</td><td><span style='opacity:0.6'>{}</span></td></tr>", k, v, type_str));
-                        }
-                        html.push_str("</tbody></table></div>");
+                    && !fd.is_empty()
+                {
+                    html.push_str(r#"<div class="section"><div class="section-header"><div class="section-title">Form Data</div><div class="section-line"></div></div>"#);
+                    html.push_str("<table><thead><tr><th>Key</th><th>Value</th><th>Type</th></tr></thead><tbody>");
+                    for (k, v, is_file) in fd {
+                        let type_str = if *is_file { "File" } else { "Text" };
+                        html.push_str(&format!("<tr><td><code>{}</code></td><td>{}</td><td><span style='opacity:0.6'>{}</span></td></tr>", k, v, type_str));
                     }
-                
+                    html.push_str("</tbody></table></div>");
+                }
+
                 // GraphQL
                 if let Some(gql) = &req.graphql_query
-                    && !gql.trim().is_empty() {
-                         html.push_str(r#"<div class="section"><div class="section-header"><div class="section-title">GraphQL Query</div><div class="section-line"></div></div>"#);
-                         let escaped = gql.replace("<", "&lt;").replace(">", "&gt;");
-                         html.push_str(&format!("<pre><code>{}</code></pre></div>", escaped));
-                    }
+                    && !gql.trim().is_empty()
+                {
+                    html.push_str(r#"<div class="section"><div class="section-header"><div class="section-title">GraphQL Query</div><div class="section-line"></div></div>"#);
+                    let escaped = gql.replace("<", "&lt;").replace(">", "&gt;");
+                    html.push_str(&format!("<pre><code>{}</code></pre></div>", escaped));
+                }
 
                 html.push_str("</div>"); // Close endpoint
             }
         }
     }
 
-    html.push_str(r#"</div></div>
+    html.push_str(
+        r#"</div></div>
     <script>
         // Simple scroll spy for active navigation
         const endpoints = document.querySelectorAll('.endpoint');
@@ -502,7 +530,8 @@ pub fn generate_html(collections: &[Collection]) -> String {
             });
         });
     </script>
-    </body></html>"#);
+    </body></html>"#,
+    );
     html
 }
 

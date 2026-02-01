@@ -2,7 +2,7 @@ use ratatui::style::Color;
 use ratatui::text::{Line, Span};
 use std::sync::OnceLock;
 use syntect::easy::HighlightLines;
-use syntect::highlighting::{ThemeSet, Color as SyntectColor};
+use syntect::highlighting::{Color as SyntectColor, ThemeSet};
 use syntect::parsing::SyntaxSet;
 use syntect::util::LinesWithEndings;
 
@@ -40,7 +40,7 @@ pub fn highlight<'a>(text: &'a str, extension: &str) -> Vec<Line<'a>> {
             .map(|(style, content)| {
                 let fg_color = to_ratatui_color(style.foreground);
                 // We generally ignore background to blend with TUI, or we could support it
-                 Span::styled(
+                Span::styled(
                     content.to_string(), // We have to own the string here because Span life-times are tricky with syntect yields
                     ratatui::style::Style::default().fg(fg_color),
                 )

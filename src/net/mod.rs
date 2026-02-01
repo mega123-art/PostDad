@@ -1,4 +1,4 @@
-pub mod http;
 pub mod grpc;
-pub mod websocket;
+pub mod http;
 pub mod mock_server;
+pub mod websocket;

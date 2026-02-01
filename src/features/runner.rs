@@ -129,34 +129,41 @@ pub async fn run_collection(
 
         // Run Pre-Request Script
         if let Some(script) = &config.pre_request_script
-            && !script.trim().is_empty() {
-                let script_result = scripting::run_script(
-                    script,
-                    &config.method,
-                    &url,
-                    &headers,
-                    body.as_deref().unwrap_or(""),
-                    &current_env_vars,
-                );
+            && !script.trim().is_empty()
+        {
+            let script_result = scripting::run_script(
+                script,
+                &config.method,
+                &url,
+                &headers,
+                body.as_deref().unwrap_or(""),
+                &current_env_vars,
+            );
 
-                // Apply script results
-                headers = script_result.headers;
-                if let Some(new_body) = script_result.body_override {
-                    body = Some(new_body);
-                }
-                if let Some(new_url) = script_result.url_override {
-                    url = new_url;
-                }
-                // Merge variables
-                for (k, v) in script_result.variables {
-                    current_env_vars.insert(k, v);
-                }
+            // Apply script results
+            headers = script_result.headers;
+            if let Some(new_body) = script_result.body_override {
+                body = Some(new_body);
             }
+            if let Some(new_url) = script_result.url_override {
+                url = new_url;
+            }
+            // Merge variables
+            for (k, v) in script_result.variables {
+                current_env_vars.insert(k, v);
+            }
+        }
 
         // Execute the request
         let start = std::time::Instant::now();
-        let result =
-            execute_request(&config.method, &url, &headers, body.as_deref(), config.timeout_ms).await;
+        let result = execute_request(
+            &config.method,
+            &url,
+            &headers,
+            body.as_deref(),
+            config.timeout_ms,
+        )
+        .await;
         let latency = start.elapsed().as_millis();
 
         let run_result_item = match result {
@@ -167,16 +174,17 @@ pub async fn run_collection(
 
                 // Run Post-Request Script
                 if let Some(script) = &config.post_request_script
-                    && !script.trim().is_empty() {
-                        let script_res = scripting::run_post_script(
-                            script,
-                            status,
-                            &response_body,
-                            &response_headers,
-                            latency,
-                        );
-                        tests = script_res.tests;
-                    }
+                    && !script.trim().is_empty()
+                {
+                    let script_res = scripting::run_post_script(
+                        script,
+                        status,
+                        &response_body,
+                        &response_headers,
+                        latency,
+                    );
+                    tests = script_res.tests;
+                }
 
                 // Passed if status matches AND all tests passed
                 let tests_passed = tests.iter().all(|(_, p)| *p);
@@ -230,7 +238,7 @@ async fn execute_request(
     timeout_ms: Option<u64>,
 ) -> Result<(u16, String, HashMap<String, String>), String> {
     use std::time::Duration;
-    
+
     // Build client with timeout and default User-Agent
     let client = if let Some(ms) = timeout_ms {
         reqwest::Client::builder()
@@ -282,7 +290,10 @@ async fn execute_request(
         }
         Err(e) => {
             if e.is_timeout() {
-                Err(format!("Request timed out after {}ms", timeout_ms.unwrap_or(30000)))
+                Err(format!(
+                    "Request timed out after {}ms",
+                    timeout_ms.unwrap_or(30000)
+                ))
             } else {
                 Err(format!("Request failed: {}", e))
             }

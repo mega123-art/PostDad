@@ -92,8 +92,7 @@ pub fn import_postman_collection(file_path: &str) -> std::io::Result<()> {
     let mut hcl_content = String::new();
 
     for (name, config) in &collection.requests {
-        let body_hcl = hcl::to_string(&config)
-            .map_err(std::io::Error::other)?;
+        let body_hcl = hcl::to_string(&config).map_err(std::io::Error::other)?;
 
         let entry = format!("\nrequest \"{}\" {{\n{}\n}}\n", name, body_hcl);
         hcl_content.push_str(&entry);
@@ -285,17 +284,25 @@ struct OpenApiSchema {
 
 pub fn import_openapi(file_path: &str) -> std::io::Result<()> {
     let content = fs::read_to_string(file_path)?;
-    let spec: OpenApiSpec = serde_json::from_str(&content)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Invalid OpenAPI JSON: {}", e)))?;
+    let spec: OpenApiSpec = serde_json::from_str(&content).map_err(|e| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("Invalid OpenAPI JSON: {}", e),
+        )
+    })?;
 
     // Validate it's OpenAPI v3
     if let Some(ref version) = spec.openapi
-        && !version.starts_with("3.") {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("Unsupported OpenAPI version: {}. Only v3.x is supported.", version),
-            ));
-        }
+        && !version.starts_with("3.")
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "Unsupported OpenAPI version: {}. Only v3.x is supported.",
+                version
+            ),
+        ));
+    }
 
     // Get base URL from servers
     let base_url = spec
@@ -312,7 +319,9 @@ pub fn import_openapi(file_path: &str) -> std::io::Result<()> {
         for (method, operation) in methods {
             // Skip non-HTTP methods (like "parameters" at path level)
             let http_method = method.to_uppercase();
-            if !["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"].contains(&http_method.as_str()) {
+            if !["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"]
+                .contains(&http_method.as_str())
+            {
                 continue;
             }
 
@@ -362,8 +371,9 @@ pub fn import_openapi(file_path: &str) -> std::io::Result<()> {
                 if let Some(content) = &req_body.content {
                     if let Some(json_media) = content.get("application/json") {
                         // Add Content-Type header
-                        headers_map.insert("Content-Type".to_string(), "application/json".to_string());
-                        
+                        headers_map
+                            .insert("Content-Type".to_string(), "application/json".to_string());
+
                         // Get example or generate from schema
                         let body = if let Some(example) = &json_media.example {
                             serde_json::to_string_pretty(example).unwrap_or_default()
@@ -431,8 +441,7 @@ pub fn import_openapi(file_path: &str) -> std::io::Result<()> {
     let mut hcl_content = String::new();
 
     for (name, config) in &collection.requests {
-        let body_hcl = hcl::to_string(&config)
-            .map_err(std::io::Error::other)?;
+        let body_hcl = hcl::to_string(&config).map_err(std::io::Error::other)?;
 
         let entry = format!("\nrequest \"{}\" {{\n{}\n}}\n", name, body_hcl);
         hcl_content.push_str(&entry);
@@ -459,9 +468,10 @@ fn get_example_value(schema: &Option<OpenApiSchema>) -> String {
             return default.to_string().trim_matches('"').to_string();
         }
         if let Some(enum_vals) = &s.enum_values
-            && let Some(first) = enum_vals.first() {
-                return first.to_string().trim_matches('"').to_string();
-            }
+            && let Some(first) = enum_vals.first()
+        {
+            return first.to_string().trim_matches('"').to_string();
+        }
         // Return type-based placeholder
         match s.schema_type.as_deref() {
             Some("string") => "example".to_string(),
@@ -489,9 +499,10 @@ fn schema_to_value(schema: &OpenApiSchema) -> serde_json::Value {
         return default.clone();
     }
     if let Some(enum_vals) = &schema.enum_values
-        && let Some(first) = enum_vals.first() {
-            return first.clone();
-        }
+        && let Some(first) = enum_vals.first()
+    {
+        return first.clone();
+    }
 
     match schema.schema_type.as_deref() {
         Some("object") => {
@@ -523,7 +534,7 @@ fn schema_to_value(schema: &OpenApiSchema) -> serde_json::Value {
 /// Auto-detect file format and import accordingly
 pub fn import_auto(file_path: &str) -> std::io::Result<()> {
     let content = fs::read_to_string(file_path)?;
-    
+
     // Try to parse as JSON first
     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
         // Check for OpenAPI v3 signature
@@ -537,7 +548,7 @@ pub fn import_auto(file_path: &str) -> std::io::Result<()> {
             return import_postman_collection(file_path);
         }
     }
-    
+
     // Default to Postman for backwards compatibility
     println!("Format not detected, attempting Postman import...");
     import_postman_collection(file_path)

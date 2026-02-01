@@ -1,7 +1,7 @@
-use serde_json::Value;
-use serde::{Deserialize, Serialize};
-use ratatui_image::picker::Picker;
 use image::DynamicImage;
+use ratatui_image::picker::Picker;
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum InputMode {
@@ -225,7 +225,7 @@ pub struct RequestTab {
     pub graphql_schema_types: Vec<String>,
     pub show_schema_modal: bool,
     pub should_introspect_schema: bool,
-    
+
     // gRPC
     pub grpc_service: String,
     pub grpc_method: String,
@@ -393,7 +393,6 @@ pub struct App {
     pub command_index: usize,
     pub command_input: String,
 
-    
     pub show_cookie_modal: bool,
     pub cookie_list_state: ListState,
 
@@ -442,19 +441,19 @@ pub struct App {
     pub should_run_stress_test: bool,
 
     // SSL Configuration
-    pub ssl_verify: bool,                    // Whether to verify SSL certificates
-    pub ssl_ca_cert_path: Option<String>,    // Path to custom CA certificate
+    pub ssl_verify: bool,                 // Whether to verify SSL certificates
+    pub ssl_ca_cert_path: Option<String>, // Path to custom CA certificate
     pub ssl_client_cert_path: Option<String>, // Path to client certificate (for mTLS)
-    pub ssl_client_key_path: Option<String>,  // Path to client key (for mTLS)
+    pub ssl_client_key_path: Option<String>, // Path to client key (for mTLS)
 
     // Proxy Configuration
-    pub proxy_url: Option<String>,           // HTTP/HTTPS proxy URL (e.g., http://proxy:8080)
-    pub proxy_auth_user: Option<String>,     // Proxy authentication username
-    pub proxy_auth_pass: Option<String>,     // Proxy authentication password
-    pub no_proxy: Option<String>,            // Comma-separated list of hosts to bypass proxy
+    pub proxy_url: Option<String>, // HTTP/HTTPS proxy URL (e.g., http://proxy:8080)
+    pub proxy_auth_user: Option<String>, // Proxy authentication username
+    pub proxy_auth_pass: Option<String>, // Proxy authentication password
+    pub no_proxy: Option<String>,  // Comma-separated list of hosts to bypass proxy
 
     // cURL Import
-    pub curl_import_input: String,           // Input field for curl command
+    pub curl_import_input: String, // Input field for curl command
 
     // Sentinel Mode
     pub sentinel_mode: bool,
@@ -531,13 +530,18 @@ impl App {
             mock_routes: Vec::new(),
             mock_list_state: ListState::default(),
             mock_server_handle: None,
-            image_picker: if std::env::var("TERM_PROGRAM").map(|v| v == "vscode").unwrap_or(false) {
+            image_picker: if std::env::var("TERM_PROGRAM")
+                .map(|v| v == "vscode")
+                .unwrap_or(false)
+            {
                 Some(Picker::halfblocks())
             } else {
-                Picker::from_query_stdio().ok().or(Some(Picker::halfblocks()))
+                Picker::from_query_stdio()
+                    .ok()
+                    .or(Some(Picker::halfblocks()))
             },
             clipboard: Clipboard::new().ok(),
-            
+
             show_stress_modal: false,
             stress_vus_input: "50".to_string(), // Default 50 VUs
             stress_duration_input: "10".to_string(), // Default 10s
@@ -570,7 +574,7 @@ impl App {
                 .ok(),
 
             curl_import_input: String::new(),
-            
+
             sentinel_mode: false,
             sentinel_state: Some(crate::features::sentinel::SentinelState::new()),
             should_start_sentinel: false,
@@ -581,7 +585,7 @@ impl App {
         let config = App::load_config();
         app.theme_index = config.theme_index;
         app.zen_mode = config.zen_mode;
-        
+
         // Bounds check env index
         if config.selected_env_index < app.environments.len() {
             app.selected_env_index = config.selected_env_index;
@@ -591,7 +595,7 @@ impl App {
 
         app.cookie_jar = App::load_cookies();
         app.request_history = App::load_history();
-        
+
         // Apply loaded theme
         app.apply_theme();
 
@@ -661,38 +665,37 @@ impl App {
         }
 
         if let Ok(parsed) = reqwest::Url::parse(url)
-            && let Some(host) = parsed.host_str() {
-                let entry = self
-                    .cookie_jar
-                    .entry(host.to_string())
-                    .or_default();
-                for raw_cookie in new_cookies {
-                    let name_val = raw_cookie
-                        .split(';')
-                        .next()
-                        .unwrap_or("")
-                        .trim()
-                        .to_string();
-                    if name_val.is_empty() {
-                        continue;
-                    }
-
-                    let name = name_val.split('=').next().unwrap_or("").trim();
-                    entry.retain(|c| !c.starts_with(&format!("{}=", name)));
-
-                    entry.push(name_val);
+            && let Some(host) = parsed.host_str()
+        {
+            let entry = self.cookie_jar.entry(host.to_string()).or_default();
+            for raw_cookie in new_cookies {
+                let name_val = raw_cookie
+                    .split(';')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .to_string();
+                if name_val.is_empty() {
+                    continue;
                 }
-                self.save_cookies();
+
+                let name = name_val.split('=').next().unwrap_or("").trim();
+                entry.retain(|c| !c.starts_with(&format!("{}=", name)));
+
+                entry.push(name_val);
             }
+            self.save_cookies();
+        }
     }
 
     pub fn get_cookie_header(&self, url: &str) -> Option<String> {
         if let Ok(parsed) = reqwest::Url::parse(url)
             && let Some(host) = parsed.host_str()
-                && let Some(cookies) = self.cookie_jar.get(host)
-                    && !cookies.is_empty() {
-                        return Some(cookies.join("; "));
-                    }
+            && let Some(cookies) = self.cookie_jar.get(host)
+            && !cookies.is_empty()
+        {
+            return Some(cookies.join("; "));
+        }
         None
     }
 
@@ -711,13 +714,14 @@ impl App {
         let flattened = self.get_flattened_cookies();
         if let Some((host, cookie_val)) = flattened.get(index)
             && let Some(cookies) = self.cookie_jar.get_mut(host)
-                && let Some(pos) = cookies.iter().position(|c| c == cookie_val) {
-                    cookies.remove(pos);
-                    if cookies.is_empty() {
-                        self.cookie_jar.remove(host);
-                    }
-                    self.save_cookies();
-                }
+            && let Some(pos) = cookies.iter().position(|c| c == cookie_val)
+        {
+            cookies.remove(pos);
+            if cookies.is_empty() {
+                self.cookie_jar.remove(host);
+            }
+            self.save_cookies();
+        }
     }
 
     pub fn should_open_editor(&self) -> bool {
@@ -794,9 +798,10 @@ impl App {
 
     fn load_history() -> Vec<RequestLog> {
         if let Ok(content) = std::fs::read_to_string("history.json")
-            && let Ok(history) = serde_json::from_str(&content) {
-                return history;
-            }
+            && let Ok(history) = serde_json::from_str(&content)
+        {
+            return history;
+        }
         Vec::new()
     }
 
@@ -826,9 +831,10 @@ impl App {
 
     fn load_config() -> AppConfig {
         if let Ok(content) = std::fs::read_to_string("config.json")
-            && let Ok(config) = serde_json::from_str(&content) {
-                return config;
-            }
+            && let Ok(config) = serde_json::from_str(&content)
+        {
+            return config;
+        }
         AppConfig::default()
     }
 
@@ -845,9 +851,10 @@ impl App {
 
     fn load_cookies() -> std::collections::HashMap<String, Vec<String>> {
         if let Ok(content) = std::fs::read_to_string("cookies.json")
-             && let Ok(cookies) = serde_json::from_str(&content) {
-                 return cookies;
-             }
+            && let Ok(cookies) = serde_json::from_str(&content)
+        {
+            return cookies;
+        }
         std::collections::HashMap::new()
     }
 
@@ -867,10 +874,7 @@ impl App {
     pub fn cycle_method(&mut self) {
         let methods = ["GET", "POST", "PUT", "DELETE", "PATCH"];
         let tab = self.active_tab_mut();
-        let current_pos = methods
-            .iter()
-            .position(|&m| m == tab.method)
-            .unwrap_or(0);
+        let current_pos = methods.iter().position(|&m| m == tab.method).unwrap_or(0);
         let next = (current_pos + 1) % methods.len();
         tab.method = methods[next].to_string();
     }
@@ -888,17 +892,23 @@ impl App {
         self.notification_time = Some(std::time::Instant::now());
     }
 
-
-
     pub fn generate_docs(&mut self) {
         let md_res = crate::features::doc_gen::save_docs(&self.collections);
         let html_res = crate::features::doc_gen::save_html_docs(&self.collections);
-        
+
         match (md_res, html_res) {
-            (Ok(md_path), Ok(html_path)) => self.show_notification(format!("Docs Generated: {}, {}", md_path, html_path)),
-            (Ok(md_path), Err(_)) => self.show_notification(format!("Docs Generated: {} (HTML failed)", md_path)),
-            (Err(_), Ok(html_path)) => self.show_notification(format!("Docs Generated: {} (MD failed)", html_path)),
-            (Err(e1), Err(e2)) => self.show_notification(format!("Docs Error: MD:{}, HTML:{}", e1, e2)),
+            (Ok(md_path), Ok(html_path)) => {
+                self.show_notification(format!("Docs Generated: {}, {}", md_path, html_path))
+            }
+            (Ok(md_path), Err(_)) => {
+                self.show_notification(format!("Docs Generated: {} (HTML failed)", md_path))
+            }
+            (Err(_), Ok(html_path)) => {
+                self.show_notification(format!("Docs Generated: {} (MD failed)", html_path))
+            }
+            (Err(e1), Err(e2)) => {
+                self.show_notification(format!("Docs Error: MD:{}, HTML:{}", e1, e2))
+            }
         }
     }
 
@@ -906,15 +916,21 @@ impl App {
         if self.mock_server_running {
             return;
         }
-        let handle = crate::net::mock_server::start_mock_server(self.mock_server_port, self.mock_routes.clone());
+        let handle = crate::net::mock_server::start_mock_server(
+            self.mock_server_port,
+            self.mock_routes.clone(),
+        );
         self.mock_server_handle = Some(handle);
         self.mock_server_running = true;
-        self.show_notification(format!("Mock Server Starting on port {}", self.mock_server_port));
+        self.show_notification(format!(
+            "Mock Server Starting on port {}",
+            self.mock_server_port
+        ));
     }
 
     pub fn stop_mock_server(&mut self) {
         if let Some(handle) = self.mock_server_handle.take() {
-           handle.handle.abort();
+            handle.handle.abort();
         }
         self.mock_server_running = false;
         self.show_notification("Mock Server Stopped".to_string());
@@ -1052,31 +1068,33 @@ impl App {
             } else if idx > collection_count + 2 {
                 let history_idx = idx - (collection_count + 3);
                 if history_idx < self.request_history.len()
-                    && let Some(log) = self.request_history.get(history_idx).cloned() {
-                        let tab = self.active_tab_mut();
-                        tab.method = log.method.clone();
-                        tab.url = log.url.clone();
-                        tab.status_code = Some(log.status);
-                        tab.latency = Some(log.latency);
-                        
-                        tab.response = log.body.clone();
-                        tab.response_headers = log.headers.clone();
-                        tab.response_bytes = log.response_bytes.clone();
-                        tab.response_is_binary = log.is_binary;
+                    && let Some(log) = self.request_history.get(history_idx).cloned()
+                {
+                    let tab = self.active_tab_mut();
+                    tab.method = log.method.clone();
+                    tab.url = log.url.clone();
+                    tab.status_code = Some(log.status);
+                    tab.latency = Some(log.latency);
 
-                        if let Some(body_text) = &log.body {
-                            if let Ok(val) = serde_json::from_str::<Value>(body_text) {
-                                let root = crate::app::JsonEntry::from_value("root".to_string(), &val, 0);
-                                tab.response_json = Some(vec![root]);
-                            } else {
-                                tab.response_json = None;
-                            }
+                    tab.response = log.body.clone();
+                    tab.response_headers = log.headers.clone();
+                    tab.response_bytes = log.response_bytes.clone();
+                    tab.response_is_binary = log.is_binary;
+
+                    if let Some(body_text) = &log.body {
+                        if let Ok(val) = serde_json::from_str::<Value>(body_text) {
+                            let root =
+                                crate::app::JsonEntry::from_value("root".to_string(), &val, 0);
+                            tab.response_json = Some(vec![root]);
                         } else {
                             tab.response_json = None;
                         }
-
-                        self.popup_message = Some("Restored from history".to_string());
+                    } else {
+                        tab.response_json = None;
                     }
+
+                    self.popup_message = Some("Restored from history".to_string());
+                }
             }
         }
     }
@@ -1132,14 +1150,30 @@ impl App {
         // Note: Headers keys are lowercase in our HashMap (from network.rs)
         if let Some(ct) = self.active_tab().response_headers.get("content-type") {
             let ct = ct.to_lowercase();
-            if ct.contains("json") { return Some("json".to_string()); }
-            if ct.contains("html") { return Some("html".to_string()); }
-            if ct.contains("png") { return Some("png".to_string()); }
-            if ct.contains("jpeg") || ct.contains("jpg") { return Some("jpg".to_string()); }
-            if ct.contains("pdf") { return Some("pdf".to_string()); }
-            if ct.contains("xml") { return Some("xml".to_string()); }
-            if ct.contains("javascript") { return Some("js".to_string()); }
-            if ct.contains("text/plain") { return Some("txt".to_string()); }
+            if ct.contains("json") {
+                return Some("json".to_string());
+            }
+            if ct.contains("html") {
+                return Some("html".to_string());
+            }
+            if ct.contains("png") {
+                return Some("png".to_string());
+            }
+            if ct.contains("jpeg") || ct.contains("jpg") {
+                return Some("jpg".to_string());
+            }
+            if ct.contains("pdf") {
+                return Some("pdf".to_string());
+            }
+            if ct.contains("xml") {
+                return Some("xml".to_string());
+            }
+            if ct.contains("javascript") {
+                return Some("js".to_string());
+            }
+            if ct.contains("text/plain") {
+                return Some("txt".to_string());
+            }
         }
         None
     }
@@ -1148,62 +1182,73 @@ impl App {
         if let Some(bytes) = &self.active_tab().response_bytes {
             // Try to find a good filename
             let mut filename = "response".to_string();
-            
+
             // Check Content-Disposition header
-            if let Some(cd) = self.active_tab().response_headers.get("content-disposition") {
-                 if let Some(start) = cd.find("filename=") {
-                     let rest = &cd[start + 9..];
-                     let end = rest.find(';').unwrap_or(rest.len());
-                     let name = rest[..end].trim_matches('"').to_string();
-                     if !name.is_empty() {
-                         filename = name;
-                     }
-                 }
+            if let Some(cd) = self
+                .active_tab()
+                .response_headers
+                .get("content-disposition")
+            {
+                if let Some(start) = cd.find("filename=") {
+                    let rest = &cd[start + 9..];
+                    let end = rest.find(';').unwrap_or(rest.len());
+                    let name = rest[..end].trim_matches('"').to_string();
+                    if !name.is_empty() {
+                        filename = name;
+                    }
+                }
             } else {
                 // Use fallback with timestamp
-                let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+                let timestamp = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
                 filename = format!("response_{}", timestamp);
-                 if let Some(ext) = self.guess_extension() {
+                if let Some(ext) = self.guess_extension() {
                     filename = format!("{}.{}", filename, ext);
-                 } else {
-                     filename = format!("{}.bin", filename);
-                 }
+                } else {
+                    filename = format!("{}.bin", filename);
+                }
             }
 
-            let mut path = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+            let mut path =
+                std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
             path.push(&filename);
-            
+
             if std::fs::write(&path, bytes).is_ok() {
                 self.show_notification(format!("Saved: {}", filename));
             } else {
                 self.show_notification(format!("Failed to save {}", filename));
             }
         } else {
-             self.show_notification("No response content to download".to_string());
+            self.show_notification("No response content to download".to_string());
         }
     }
 
     pub fn preview_response(&mut self) {
         if let Some(bytes) = &self.active_tab().response_bytes {
             let mut file_path = std::env::temp_dir();
-            let timestamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs();
+            let timestamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs();
             let mut filename = format!("preview_{}", timestamp);
-            
+
             if let Some(ext) = self.guess_extension() {
                 filename = format!("{}.{}", filename, ext);
             } else {
-                 filename = format!("{}.dat", filename);
+                filename = format!("{}.dat", filename);
             }
             file_path.push(filename);
 
             if std::fs::write(&file_path, bytes).is_ok() {
-                 if webbrowser::open(file_path.to_str().unwrap()).is_ok() {
-                      self.show_notification("Opened default viewer".to_string());
-                 } else {
-                      self.show_notification("Failed to open viewer".to_string());
-                 }
+                if webbrowser::open(file_path.to_str().unwrap()).is_ok() {
+                    self.show_notification("Opened default viewer".to_string());
+                } else {
+                    self.show_notification("Failed to open viewer".to_string());
+                }
             } else {
-                 self.show_notification("Failed to write temp file".to_string());
+                self.show_notification("Failed to write temp file".to_string());
             }
         } else {
             self.show_notification("No response content to preview".to_string());
@@ -1213,31 +1258,33 @@ impl App {
     pub fn trigger_introspection(&mut self) {
         self.active_tab_mut().should_introspect_schema = true;
     }
-    
+
     pub fn parse_schema_json(&mut self, json_str: &str) {
         // Simple manual parsing or use serde_json
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(json_str) {
-            if let Some(types) = val.get("data")
+            if let Some(types) = val
+                .get("data")
                 .and_then(|d| d.get("__schema"))
                 .and_then(|s| s.get("types"))
-                .and_then(|t| t.as_array()) 
+                .and_then(|t| t.as_array())
             {
                 let mut schema_types = Vec::new();
                 for t in types {
                     if let Some(name) = t.get("name").and_then(|n| n.as_str())
-                        && !name.starts_with("__") {
-                            schema_types.push(name.to_string());
-                        }
+                        && !name.starts_with("__")
+                    {
+                        schema_types.push(name.to_string());
+                    }
                 }
                 schema_types.sort();
                 self.active_tab_mut().graphql_schema_types = schema_types;
                 self.active_tab_mut().show_schema_modal = true; // Show modal with types
                 self.show_notification("Schema Introspection Complete".to_string());
             } else {
-                 self.show_notification("Invalid Schema Response".to_string());
+                self.show_notification("Invalid Schema Response".to_string());
             }
         } else {
-             self.show_notification("Failed to parse Schema JSON".to_string());
+            self.show_notification("Failed to parse Schema JSON".to_string());
         }
     }
 
@@ -1252,10 +1299,7 @@ impl App {
         match &tab.auth_type {
             AuthType::Bearer => {
                 if !tab.auth_token.is_empty() {
-                    cmd.push_str(&format!(
-                        " -H \"Authorization: Bearer {}\"",
-                        tab.auth_token
-                    ));
+                    cmd.push_str(&format!(" -H \"Authorization: Bearer {}\"", tab.auth_token));
                 }
             }
             AuthType::Basic => {
@@ -1267,10 +1311,7 @@ impl App {
             }
             AuthType::OAuth2 => {
                 if !tab.auth_token.is_empty() {
-                    cmd.push_str(&format!(
-                        " -H \"Authorization: Bearer {}\"",
-                        tab.auth_token
-                    ));
+                    cmd.push_str(&format!(" -H \"Authorization: Bearer {}\"", tab.auth_token));
                 }
             }
             _ => {}
@@ -1304,10 +1345,10 @@ impl App {
                 };
                 let query = tab.graphql_query.replace("\n", " ").replace("'", "'\\''");
                 let json_body = format!(r#"{{"query": "{}", "variables": {}}}"#, query, vars);
-                 cmd.push_str(&format!(" -d '{}'", json_body));
+                cmd.push_str(&format!(" -d '{}'", json_body));
             }
             BodyType::Grpc => {
-                 cmd.push_str(" # gRPC not fully supported in CURL generator");
+                cmd.push_str(" # gRPC not fully supported in CURL generator");
             }
         }
 
@@ -1330,7 +1371,7 @@ impl App {
 
         // Simple tokenizer that respects quotes
         let tokens = Self::tokenize_curl(&cmd)?;
-        
+
         let mut url = String::new();
         let mut method = "GET".to_string();
         let mut headers: Vec<(String, String)> = Vec::new();
@@ -1376,7 +1417,11 @@ impl App {
                             let key = form_item[..eq_pos].trim().to_string();
                             let value = form_item[eq_pos + 1..].trim().to_string();
                             let is_file = value.starts_with('@');
-                            let clean_value = if is_file { value[1..].to_string() } else { value };
+                            let clean_value = if is_file {
+                                value[1..].to_string()
+                            } else {
+                                value
+                            };
                             form_data.push((key, clean_value, is_file));
                         }
                         if method == "GET" {
@@ -1414,16 +1459,19 @@ impl App {
                     }
                 }
                 // Skip flags we don't care about
-                "-k" | "--insecure" | "-v" | "--verbose" | "-s" | "--silent" 
-                | "-L" | "--location" | "-i" | "--include" | "--compressed" => {}
+                "-k" | "--insecure" | "-v" | "--verbose" | "-s" | "--silent" | "-L"
+                | "--location" | "-i" | "--include" | "--compressed" => {}
                 // Skip flags with arguments we ignore
                 "-o" | "--output" | "--connect-timeout" | "-m" | "--max-time" => {
                     i += 1; // Skip the argument too
                 }
                 _ => {
                     // If it looks like a URL
-                    if token.starts_with("http://") || token.starts_with("https://") 
-                        || token.starts_with("ws://") || token.starts_with("wss://") {
+                    if token.starts_with("http://")
+                        || token.starts_with("https://")
+                        || token.starts_with("ws://")
+                        || token.starts_with("wss://")
+                    {
                         url = token.clone();
                     } else if !token.starts_with('-') && url.is_empty() {
                         // Might be a URL without protocol
@@ -1443,7 +1491,7 @@ impl App {
         tab.url = url;
         tab.method = method;
         tab.request_headers = headers.into_iter().collect();
-        
+
         if !form_data.is_empty() {
             tab.body_type = BodyType::FormData;
             tab.form_data = form_data;
@@ -1522,12 +1570,13 @@ impl App {
             code.push_str(&format!("    \"{}\": \"{}\",\n", k, v));
         }
         if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
-            && !tab.auth_token.is_empty() {
-                code.push_str(&format!(
-                    "    \"Authorization\": \"Bearer {}\",\n",
-                    tab.auth_token
-                ));
-            }
+            && !tab.auth_token.is_empty()
+        {
+            code.push_str(&format!(
+                "    \"Authorization\": \"Bearer {}\",\n",
+                tab.auth_token
+            ));
+        }
         code.push_str("}\n\n");
 
         match tab.body_type {
@@ -1584,12 +1633,13 @@ impl App {
             code.push_str(&format!("    '{}': '{}',\n", k, v));
         }
         if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
-            && !tab.auth_token.is_empty() {
-                code.push_str(&format!(
-                    "    'Authorization': 'Bearer {}',\n",
-                    tab.auth_token
-                ));
-            }
+            && !tab.auth_token.is_empty()
+        {
+            code.push_str(&format!(
+                "    'Authorization': 'Bearer {}',\n",
+                tab.auth_token
+            ));
+        }
         code.push_str("  },\n");
 
         if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
@@ -1608,49 +1658,56 @@ impl App {
         code
     }
 
-
     pub fn generate_go_code(&self) -> String {
         let tab = self.active_tab();
-        let mut code = String::from("package main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n\t\"io/ioutil\"\n");
+        let mut code =
+            String::from("package main\n\nimport (\n\t\"fmt\"\n\t\"net/http\"\n\t\"io/ioutil\"\n");
 
         if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
             code.push_str("\t\"strings\"\n");
         }
         if tab.body_type == BodyType::FormData {
-            code.push_str("\t\"bytes\"\n\t\"mime/multipart\"\n\t\"os\"\n\t\"io\"\n\t\"path/filepath\"\n");
+            code.push_str(
+                "\t\"bytes\"\n\t\"mime/multipart\"\n\t\"os\"\n\t\"io\"\n\t\"path/filepath\"\n",
+            );
         }
         code.push_str(")\n\nfunc main() {\n");
         code.push_str(&format!("\turl := \"{}\"\n", self.process_url()));
         code.push_str(&format!("\tmethod := \"{}\"\n", tab.method));
-        
-        if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
-             let safe_body = tab.request_body.replace("`", "` + \"`\" + `");
-             code.push_str(&format!("\tpayload := strings.NewReader(`{}`)\n", safe_body));
-             code.push_str("\n\tclient := &http.Client{}\n");
-             code.push_str("\treq, err := http.NewRequest(method, url, payload)\n");
-        } else if tab.body_type == BodyType::FormData {
-             code.push_str("\tpayload := &bytes.Buffer{}\n");
-             code.push_str("\twriter := multipart.NewWriter(payload)\n");
-             for (k, v, is_file) in &tab.form_data {
-                 if *is_file {
-                      code.push_str(&format!("\tfile, err := os.Open(\"{}\")\n", v));
-                      code.push_str("\tif err != nil {\n\t\tfmt.Println(err)\n\t\treturn\n\t}\n\tdefer file.Close()\n");
-                      code.push_str(&format!("\tpart, err := writer.CreateFormFile(\"{}\", filepath.Base(\"{}\"))\n", k, v));
-                      code.push_str("\t_, err = io.Copy(part, file)\n");
-                 } else {
-                      code.push_str(&format!("\t_ = writer.WriteField(\"{}\", \"{}\")\n", k, v));
-                 }
-             }
-             code.push_str("\terr := writer.Close()\n");
-             code.push_str("\tif err != nil {\n\t\tfmt.Println(err)\n\t\treturn\n\t}\n");
-             
-             code.push_str("\n\tclient := &http.Client{}\n");
-             code.push_str("\treq, err := http.NewRequest(method, url, payload)\n");
-             code.push_str("\treq.Header.Set(\"Content-Type\", writer.FormDataContentType())\n");
 
+        if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
+            let safe_body = tab.request_body.replace("`", "` + \"`\" + `");
+            code.push_str(&format!(
+                "\tpayload := strings.NewReader(`{}`)\n",
+                safe_body
+            ));
+            code.push_str("\n\tclient := &http.Client{}\n");
+            code.push_str("\treq, err := http.NewRequest(method, url, payload)\n");
+        } else if tab.body_type == BodyType::FormData {
+            code.push_str("\tpayload := &bytes.Buffer{}\n");
+            code.push_str("\twriter := multipart.NewWriter(payload)\n");
+            for (k, v, is_file) in &tab.form_data {
+                if *is_file {
+                    code.push_str(&format!("\tfile, err := os.Open(\"{}\")\n", v));
+                    code.push_str("\tif err != nil {\n\t\tfmt.Println(err)\n\t\treturn\n\t}\n\tdefer file.Close()\n");
+                    code.push_str(&format!(
+                        "\tpart, err := writer.CreateFormFile(\"{}\", filepath.Base(\"{}\"))\n",
+                        k, v
+                    ));
+                    code.push_str("\t_, err = io.Copy(part, file)\n");
+                } else {
+                    code.push_str(&format!("\t_ = writer.WriteField(\"{}\", \"{}\")\n", k, v));
+                }
+            }
+            code.push_str("\terr := writer.Close()\n");
+            code.push_str("\tif err != nil {\n\t\tfmt.Println(err)\n\t\treturn\n\t}\n");
+
+            code.push_str("\n\tclient := &http.Client{}\n");
+            code.push_str("\treq, err := http.NewRequest(method, url, payload)\n");
+            code.push_str("\treq.Header.Set(\"Content-Type\", writer.FormDataContentType())\n");
         } else {
-             code.push_str("\n\tclient := &http.Client{}\n");
-             code.push_str("\treq, err := http.NewRequest(method, url, nil)\n");
+            code.push_str("\n\tclient := &http.Client{}\n");
+            code.push_str("\treq, err := http.NewRequest(method, url, nil)\n");
         }
 
         code.push_str("\tif err != nil {\n\t\tfmt.Println(err)\n\t\treturn\n\t}\n");
@@ -1660,9 +1717,13 @@ impl App {
         }
 
         if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
-             && !tab.auth_token.is_empty() {
-                 code.push_str(&format!("\treq.Header.Add(\"Authorization\", \"Bearer {}\")\n", tab.auth_token));
-             }
+            && !tab.auth_token.is_empty()
+        {
+            code.push_str(&format!(
+                "\treq.Header.Add(\"Authorization\", \"Bearer {}\")\n",
+                tab.auth_token
+            ));
+        }
 
         code.push_str("\n\tres, err := client.Do(req)\n");
         code.push_str("\tif err != nil {\n\t\tfmt.Println(err)\n\t\treturn\n\t}\n");
@@ -1676,37 +1737,44 @@ impl App {
 
     pub fn generate_rust_code(&self) -> String {
         let tab = self.active_tab();
-        let mut code = String::from("#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n");
+        let mut code = String::from(
+            "#[tokio::main]\nasync fn main() -> Result<(), Box<dyn std::error::Error>> {\n",
+        );
         code.push_str("\tlet client = reqwest::Client::new();\n");
-        
+
         if tab.body_type == BodyType::FormData {
             code.push_str("\tlet form = reqwest::multipart::Form::new()\n");
             for (k, v, is_file) in &tab.form_data {
                 if *is_file {
-                     code.push_str(&format!("\t\t.file(\"{}\", \"{}\").await?\n", k, v));
+                    code.push_str(&format!("\t\t.file(\"{}\", \"{}\").await?\n", k, v));
                 } else {
-                     code.push_str(&format!("\t\t.text(\"{}\", \"{}\")\n", k, v));
+                    code.push_str(&format!("\t\t.text(\"{}\", \"{}\")\n", k, v));
                 }
             }
             code.push_str("\t\t;\n");
         }
 
-        code.push_str(&format!("\tlet res = client.request(reqwest::Method::{}, \"{}\")\n", tab.method.to_uppercase(), self.process_url()));
+        code.push_str(&format!(
+            "\tlet res = client.request(reqwest::Method::{}, \"{}\")\n",
+            tab.method.to_uppercase(),
+            self.process_url()
+        ));
 
         for (k, v) in &tab.request_headers {
             code.push_str(&format!("\t\t.header(\"{}\", \"{}\")\n", k, v));
         }
-        
+
         if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
-            && !tab.auth_token.is_empty() {
-                code.push_str(&format!("\t\t.bearer_auth(\"{}\")\n", tab.auth_token));
-            }
+            && !tab.auth_token.is_empty()
+        {
+            code.push_str(&format!("\t\t.bearer_auth(\"{}\")\n", tab.auth_token));
+        }
 
         if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
-             let safe_body = tab.request_body.replace("\"", "\\\"");
-             code.push_str(&format!("\t\t.body(\"{}\")\n", safe_body));
+            let safe_body = tab.request_body.replace("\"", "\\\"");
+            code.push_str(&format!("\t\t.body(\"{}\")\n", safe_body));
         } else if tab.body_type == BodyType::FormData {
-             code.push_str("\t\t.multipart(form)\n");
+            code.push_str("\t\t.multipart(form)\n");
         }
 
         code.push_str("\t\t.send()\n\t\t.await?;\n");
@@ -1721,35 +1789,47 @@ impl App {
         code.push_str(&format!("url = URI(\"{}\")\n\n", self.process_url()));
         code.push_str("http = Net::HTTP.new(url.host, url.port)\n");
         code.push_str("http.use_ssl = true\n\n");
-        
+
         let method_lower = tab.method.to_lowercase();
         let method_start = method_lower.chars().next().unwrap_or('g').to_uppercase();
-        let method_rest = if method_lower.len() > 1 { &method_lower[1..] } else { "" };
+        let method_rest = if method_lower.len() > 1 {
+            &method_lower[1..]
+        } else {
+            ""
+        };
         let method_class = format!("{}{}", method_start, method_rest);
-        
+
         code.push_str(&format!("request = Net::HTTP::{}.new(url)\n", method_class));
 
         for (k, v) in &tab.request_headers {
-             code.push_str(&format!("request[\"{}\"] = \"{}\"\n", k, v));
+            code.push_str(&format!("request[\"{}\"] = \"{}\"\n", k, v));
         }
-        
+
         if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
-            && !tab.auth_token.is_empty() {
-                 code.push_str(&format!("request[\"Authorization\"] = \"Bearer {}\"\n", tab.auth_token));
-            }
+            && !tab.auth_token.is_empty()
+        {
+            code.push_str(&format!(
+                "request[\"Authorization\"] = \"Bearer {}\"\n",
+                tab.auth_token
+            ));
+        }
 
         if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
             let safe_body = tab.request_body.replace("\"", "\\\"");
             code.push_str(&format!("request.body = \"{}\"\n", safe_body));
         } else if tab.body_type == BodyType::FormData {
             code.push_str("boundary = \"PostDadBoundary\"\n");
-            code.push_str("request[\"Content-Type\"] = \"multipart/form-data; boundary=#{boundary}\"\n");
+            code.push_str(
+                "request[\"Content-Type\"] = \"multipart/form-data; boundary=#{boundary}\"\n",
+            );
             code.push_str("body = []\n");
             for (k, v, is_file) in &tab.form_data {
                 if *is_file {
                     code.push_str("body << \"--#{boundary}\\r\\n\"\n");
                     code.push_str(&format!("body << \"Content-Disposition: form-data; name=\\\"{}\\\"; filename=\\\"{}\\\"\\r\\n\"\n", k, v));
-                    code.push_str("body << \"Content-Type: application/octet-stream\\r\\n\\r\\n\"\n");
+                    code.push_str(
+                        "body << \"Content-Type: application/octet-stream\\r\\n\\r\\n\"\n",
+                    );
                     code.push_str(&format!("body << File.read(\"{}\")\n", v));
                     code.push_str("body << \"\\r\\n\"\n");
                 } else {
@@ -1768,67 +1848,92 @@ impl App {
     }
 
     pub fn generate_php_code(&self) -> String {
-         let tab = self.active_tab();
-         let mut code = String::from("<?php\n\n$curl = curl_init();\n\ncurl_setopt_array($curl, array(\n");
-         code.push_str(&format!("  CURLOPT_URL => '{}',\n", self.process_url()));
-         code.push_str("  CURLOPT_RETURNTRANSFER => true,\n  CURLOPT_ENCODING => '',\n  CURLOPT_MAXREDIRS => 10,\n  CURLOPT_TIMEOUT => 0,\n  CURLOPT_FOLLOWLOCATION => true,\n  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,\n");
-         code.push_str(&format!("  CURLOPT_CUSTOMREQUEST => '{}',\n", tab.method));
-         
-         if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
-             let safe_body = tab.request_body.replace("'", "\\'");
-             code.push_str(&format!("  CURLOPT_POSTFIELDS => '{}',\n", safe_body));
-         } else if tab.body_type == BodyType::FormData {
-             code.push_str("  CURLOPT_POSTFIELDS => array(\n");
-             for (k, v, is_file) in &tab.form_data {
-                  if *is_file {
-                       code.push_str(&format!("    '{}' => new CURLFile('{}'),\n", k, v));
-                  } else {
-                       code.push_str(&format!("    '{}' => '{}',\n", k, v));
-                  }
-             }
-             code.push_str("  ),\n");
-         }
+        let tab = self.active_tab();
+        let mut code =
+            String::from("<?php\n\n$curl = curl_init();\n\ncurl_setopt_array($curl, array(\n");
+        code.push_str(&format!("  CURLOPT_URL => '{}',\n", self.process_url()));
+        code.push_str("  CURLOPT_RETURNTRANSFER => true,\n  CURLOPT_ENCODING => '',\n  CURLOPT_MAXREDIRS => 10,\n  CURLOPT_TIMEOUT => 0,\n  CURLOPT_FOLLOWLOCATION => true,\n  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,\n");
+        code.push_str(&format!("  CURLOPT_CUSTOMREQUEST => '{}',\n", tab.method));
 
-         code.push_str("  CURLOPT_HTTPHEADER => array(\n");
-         for (k, v) in &tab.request_headers {
-              code.push_str(&format!("    '{}: {}',\n", k, v));
-         }
-         if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
-             && !tab.auth_token.is_empty() {
-                 code.push_str(&format!("    'Authorization: Bearer {}',\n", tab.auth_token));
-             }
-         code.push_str("  ),\n));\n\n$response = curl_exec($curl);\n\ncurl_close($curl);\necho $response;\n");
-         code
+        if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
+            let safe_body = tab.request_body.replace("'", "\\'");
+            code.push_str(&format!("  CURLOPT_POSTFIELDS => '{}',\n", safe_body));
+        } else if tab.body_type == BodyType::FormData {
+            code.push_str("  CURLOPT_POSTFIELDS => array(\n");
+            for (k, v, is_file) in &tab.form_data {
+                if *is_file {
+                    code.push_str(&format!("    '{}' => new CURLFile('{}'),\n", k, v));
+                } else {
+                    code.push_str(&format!("    '{}' => '{}',\n", k, v));
+                }
+            }
+            code.push_str("  ),\n");
+        }
+
+        code.push_str("  CURLOPT_HTTPHEADER => array(\n");
+        for (k, v) in &tab.request_headers {
+            code.push_str(&format!("    '{}: {}',\n", k, v));
+        }
+        if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
+            && !tab.auth_token.is_empty()
+        {
+            code.push_str(&format!(
+                "    'Authorization: Bearer {}',\n",
+                tab.auth_token
+            ));
+        }
+        code.push_str(
+            "  ),\n));\n\n$response = curl_exec($curl);\n\ncurl_close($curl);\necho $response;\n",
+        );
+        code
     }
 
-      pub fn generate_csharp_code(&self) -> String {
+    pub fn generate_csharp_code(&self) -> String {
         let tab = self.active_tab();
         let mut code = String::from("var client = new HttpClient();\n");
         let method_start = tab.method.chars().next().unwrap_or('G').to_uppercase();
-        let method_rest = if tab.method.len() > 1 { tab.method[1..].to_lowercase() } else { String::new() };
+        let method_rest = if tab.method.len() > 1 {
+            tab.method[1..].to_lowercase()
+        } else {
+            String::new()
+        };
         let method = format!("{}{}", method_start, method_rest);
-        code.push_str(&format!("var request = new HttpRequestMessage(HttpMethod.{}, \"{}\");\n", method, self.process_url()));
+        code.push_str(&format!(
+            "var request = new HttpRequestMessage(HttpMethod.{}, \"{}\");\n",
+            method,
+            self.process_url()
+        ));
 
         for (k, v) in &tab.request_headers {
             code.push_str(&format!("request.Headers.Add(\"{}\", \"{}\");\n", k, v));
         }
-        
+
         if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
-            && !tab.auth_token.is_empty() {
-                code.push_str(&format!("request.Headers.Add(\"Authorization\", \"Bearer {}\");\n", tab.auth_token));
-            }
+            && !tab.auth_token.is_empty()
+        {
+            code.push_str(&format!(
+                "request.Headers.Add(\"Authorization\", \"Bearer {}\");\n",
+                tab.auth_token
+            ));
+        }
 
         if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
-             let safe_body = tab.request_body.replace("\"", "\\\"");
-             code.push_str(&format!("var content = new StringContent(\"{}\", null, \"application/json\");\n", safe_body));
-             code.push_str("request.Content = content;\n");
+            let safe_body = tab.request_body.replace("\"", "\\\"");
+            code.push_str(&format!(
+                "var content = new StringContent(\"{}\", null, \"application/json\");\n",
+                safe_body
+            ));
+            code.push_str("request.Content = content;\n");
         } else if tab.body_type == BodyType::FormData {
             code.push_str("var content = new MultipartFormDataContent();\n");
             for (k, v, is_file) in &tab.form_data {
                 if *is_file {
-                     code.push_str(&format!("content.Add(new ByteArrayContent(File.ReadAllBytes(\"{}\")), \"{}\", \"{}\");\n", v, k, v));
+                    code.push_str(&format!("content.Add(new ByteArrayContent(File.ReadAllBytes(\"{}\")), \"{}\", \"{}\");\n", v, k, v));
                 } else {
-                     code.push_str(&format!("content.Add(new StringContent(\"{}\"), \"{}\");\n", v, k));
+                    code.push_str(&format!(
+                        "content.Add(new StringContent(\"{}\"), \"{}\");\n",
+                        v, k
+                    ));
                 }
             }
             code.push_str("request.Content = content;\n");
@@ -1837,24 +1942,24 @@ impl App {
         code.push_str("var response = await client.SendAsync(request);\n");
         code.push_str("response.EnsureSuccessStatusCode();\n");
         code.push_str("Console.WriteLine(await response.Content.ReadAsStringAsync());\n");
-        
+
         code
     }
 
     pub fn copy_to_clipboard(&mut self, text: String) {
         if self.clipboard.is_none() {
-             // Try to re-initialize if it failed initially
-             self.clipboard = Clipboard::new().ok();
+            // Try to re-initialize if it failed initially
+            self.clipboard = Clipboard::new().ok();
         }
 
         if let Some(clipboard) = &mut self.clipboard {
             if let Err(e) = clipboard.set_text(text) {
                 self.popup_message = Some(format!("Clipboard Error: {}", e));
             } else {
-                 self.popup_message = Some("Copied to clipboard!".to_string());
+                self.popup_message = Some("Copied to clipboard!".to_string());
             }
         } else {
-             self.popup_message = Some("Clipboard unavailable".to_string());
+            self.popup_message = Some("Clipboard unavailable".to_string());
         }
     }
 
@@ -1864,7 +1969,7 @@ impl App {
             self.popup_message = Some("Cannot copy binary response to clipboard".to_string());
             return;
         }
-        
+
         if let Some(ref response) = tab.response {
             let text = response.clone();
             self.copy_to_clipboard(text);
@@ -1877,29 +1982,31 @@ impl App {
     pub fn toggle_current_selection(&mut self) {
         let tab = self.active_tab_mut();
         if let Some(selected_idx) = tab.json_list_state.selected()
-            && let Some(entries) = &mut tab.response_json {
-                let mut current_idx = selected_idx;
-                if let Some(node) = Self::get_mut_node_at_index(entries, &mut current_idx) {
-                    node.is_expanded = !node.is_expanded;
-                }
+            && let Some(entries) = &mut tab.response_json
+        {
+            let mut current_idx = selected_idx;
+            if let Some(node) = Self::get_mut_node_at_index(entries, &mut current_idx) {
+                node.is_expanded = !node.is_expanded;
             }
+        }
     }
 
     pub fn set_expanded_current_selection(&mut self, expanded: bool) {
         let tab = self.active_tab_mut();
         if let Some(selected_idx) = tab.json_list_state.selected()
-            && let Some(entries) = &mut tab.response_json {
-                let mut current_idx = selected_idx;
-                if let Some(node) = Self::get_mut_node_at_index(entries, &mut current_idx) {
-                    node.is_expanded = expanded;
-                }
+            && let Some(entries) = &mut tab.response_json
+        {
+            let mut current_idx = selected_idx;
+            if let Some(node) = Self::get_mut_node_at_index(entries, &mut current_idx) {
+                node.is_expanded = expanded;
             }
+        }
     }
 
     pub fn duplicate_tab(&mut self) {
         let mut new_tab = self.active_tab().clone();
         new_tab.name = format!("{} (Copy)", new_tab.name);
-        
+
         // Reset response state for the new tab
         new_tab.response = None;
         new_tab.response_bytes = None;
@@ -1945,9 +2052,9 @@ impl App {
 
             if entry.is_expanded
                 && let Some(child) = Self::get_mut_node_at_index(&mut entry.children, target_index)
-                {
-                    return Some(child);
-                }
+            {
+                return Some(child);
+            }
         }
         None
     }
@@ -2067,21 +2174,69 @@ pub struct CommandAction {
 
 pub fn get_available_commands() -> Vec<CommandAction> {
     vec![
-        CommandAction { name: "New Tab", desc: "Open a new request tab" },
-        CommandAction { name: "Duplicate Tab", desc: "Duplicate current tab" },
-        CommandAction { name: "Close Tab", desc: "Close current tab" },
-        CommandAction { name: "Next Tab", desc: "Switch to next tab" },
-        CommandAction { name: "Prev Tab", desc: "Switch to previous tab" },
-        CommandAction { name: "Toggle Sidebar", desc: "Show/Hide Sidebar" },
-        CommandAction { name: "Toggle Zen Mode", desc: "Show/Hide UI Chrome" },
-        CommandAction { name: "Switch Theme", desc: "Rotate through themes" },
-        CommandAction { name: "Toggle WebSocket", desc: "Switch between HTTP/WebSocket" },
-        CommandAction { name: "Filter Collections", desc: "Search/Filter sidebar" },
-        CommandAction { name: "Clear History", desc: "Clear request history" },
-        CommandAction { name: "Clear Cookies", desc: "Clear all saved cookies" },
-        CommandAction { name: "Manage Cookies", desc: "View and delete cookies" },
-        CommandAction { name: "Export HTML Docs", desc: "Generate API_DOCS.html" },
-        CommandAction { name: "Help", desc: "Show keyboard shortcuts" },
-        CommandAction { name: "Quit", desc: "Exit Application" },
+        CommandAction {
+            name: "New Tab",
+            desc: "Open a new request tab",
+        },
+        CommandAction {
+            name: "Duplicate Tab",
+            desc: "Duplicate current tab",
+        },
+        CommandAction {
+            name: "Close Tab",
+            desc: "Close current tab",
+        },
+        CommandAction {
+            name: "Next Tab",
+            desc: "Switch to next tab",
+        },
+        CommandAction {
+            name: "Prev Tab",
+            desc: "Switch to previous tab",
+        },
+        CommandAction {
+            name: "Toggle Sidebar",
+            desc: "Show/Hide Sidebar",
+        },
+        CommandAction {
+            name: "Toggle Zen Mode",
+            desc: "Show/Hide UI Chrome",
+        },
+        CommandAction {
+            name: "Switch Theme",
+            desc: "Rotate through themes",
+        },
+        CommandAction {
+            name: "Toggle WebSocket",
+            desc: "Switch between HTTP/WebSocket",
+        },
+        CommandAction {
+            name: "Filter Collections",
+            desc: "Search/Filter sidebar",
+        },
+        CommandAction {
+            name: "Clear History",
+            desc: "Clear request history",
+        },
+        CommandAction {
+            name: "Clear Cookies",
+            desc: "Clear all saved cookies",
+        },
+        CommandAction {
+            name: "Manage Cookies",
+            desc: "View and delete cookies",
+        },
+        CommandAction {
+            name: "Export HTML Docs",
+            desc: "Generate API_DOCS.html",
+        },
+        CommandAction {
+            name: "Help",
+            desc: "Show keyboard shortcuts",
+        },
+        CommandAction {
+            name: "Quit",
+            desc: "Exit Application",
+        },
     ]
 }
