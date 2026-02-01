@@ -841,6 +841,14 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 }
             }
 
+            KeyCode::Char('j') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                app.show_cookie_modal = !app.show_cookie_modal;
+                if app.show_cookie_modal {
+                    // Reset selection when opening
+                    app.cookie_list_state.select(Some(0));
+                }
+            }
+
             KeyCode::Char('j') | KeyCode::Down => {
                 let tab = app.active_tab();
                 let selected_tab = tab.selected_tab;
@@ -1145,13 +1153,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 app.copy_to_clipboard(code);
                 app.show_notification("Copied Rust Code".to_string());
             }
-            KeyCode::Char('j') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
-                app.show_cookie_modal = !app.show_cookie_modal;
-                if app.show_cookie_modal {
-                    // Reset selection when opening
-                    app.cookie_list_state.select(Some(0));
-                }
-            }
+
             KeyCode::Char('B') => {
                 let code = app.generate_ruby_code();
                 app.copy_to_clipboard(code);
