@@ -95,12 +95,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             let editor_var = std::env::var("EDITOR");
             let editor_cmd = if let Ok(e) = editor_var {
                 e
+            } else if cfg!(target_os = "windows") {
+                "notepad".to_string()
             } else {
-                if cfg!(target_os = "windows") {
-                    "notepad".to_string()
-                } else {
-                    "nano".to_string()
-                }
+                "nano".to_string()
             };
 
             let mut file_path = std::env::temp_dir();
@@ -194,9 +192,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let status = cmd.status();
 
-            if let Ok(s) = status {
-                if s.success() {
-                    if let Ok(content) = std::fs::read_to_string(&file_path) {
+            if let Ok(s) = status
+                && s.success()
+                    && let Ok(content) = std::fs::read_to_string(&file_path) {
                         let editor_mode = app.editor_mode;
                         let tab = app.active_tab_mut();
                         match editor_mode {
@@ -225,8 +223,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     }
-                }
-            }
 
             app.editor_mode = crate::app::EditorMode::None;
             enable_raw_mode()?;
@@ -256,8 +252,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                         auth_url, client_id, redirect_uri
                     );
 
-                    if webbrowser::open(&target).is_ok() {
-                        if let Ok((mut stream, _)) = l.accept().await {
+                    if webbrowser::open(&target).is_ok()
+                        && let Ok((mut stream, _)) = l.accept().await {
                             use tokio::io::{AsyncReadExt, AsyncWriteExt};
                             let mut buffer = [0; 1024];
                             let _ = stream.read(&mut buffer).await;
@@ -280,17 +276,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     .await;
                             }
                         }
-                    }
                 }
             });
         }
 
-        if let Some(time) = app.notification_time {
-            if time.elapsed() > std::time::Duration::from_secs(3) {
+        if let Some(time) = app.notification_time
+            && time.elapsed() > std::time::Duration::from_secs(3) {
                 app.popup_message = None;
                 app.notification_time = None;
             }
-        }
 
         terminal.draw(|f| ui::render(f, &mut app))?;
 
@@ -320,8 +314,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                             .send()
                             .await;
 
-                        if let Ok(resp) = res {
-                            if let Ok(bytes) = resp.bytes().await {
+                        if let Ok(resp) = res
+                            && let Ok(bytes) = resp.bytes().await {
                                 let text_content = String::from_utf8_lossy(&bytes);
                                 if let Ok(json) =
                                     serde_json::from_str::<serde_json::Value>(&text_content)
@@ -340,25 +334,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             )))
                                             .await;
                                     }
+                                } else if let Some(start) = text_content.find("access_token=") {
+                                    let rem = &text_content[start + 13..];
+                                    let end = rem.find('&').unwrap_or(rem.len());
+                                    let token = &rem[..end];
+                                    let _ = tx2
+                                        .send(NetworkEvent::OAuthToken(token.to_string()))
+                                        .await;
                                 } else {
-                                    if let Some(start) = text_content.find("access_token=") {
-                                        let rem = &text_content[start + 13..];
-                                        let end = rem.find('&').unwrap_or(rem.len());
-                                        let token = &rem[..end];
-                                        let _ = tx2
-                                            .send(NetworkEvent::OAuthToken(token.to_string()))
-                                            .await;
-                                    } else {
-                                        let _ = tx2
-                                            .send(NetworkEvent::Error(format!(
-                                                "OAuth exchange failed: {}",
-                                                text_content
-                                            )))
-                                            .await;
-                                    }
+                                    let _ = tx2
+                                        .send(NetworkEvent::Error(format!(
+                                            "OAuth exchange failed: {}",
+                                            text_content
+                                        )))
+                                        .await;
                                 }
                             }
-                        }
                     });
                 }
                 NetworkEvent::OAuthToken(token) => {
@@ -386,8 +377,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     // Only try to extract vars if it looks like text (JSON likely)
                     if let Some(text_content) = &text_opt {
                         let val_opt = serde_json::from_str::<Value>(text_content).ok();
-                        if let Some(val) = &val_opt {
-                            if !app.active_tab().extract_rules.is_empty() && !app.environments.is_empty() {
+                        if let Some(val) = &val_opt
+                            && !app.active_tab().extract_rules.is_empty() && !app.environments.is_empty() {
                                 let env_idx = app.selected_env_index;
                                 // We need to clone extract rules to avoid borrowing app.active_tab() while mutating app (environments)
                                 let rules = app.active_tab().extract_rules.clone();
@@ -400,8 +391,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                             format!("$.{}", path)
                                         };
 
-                                        if let Ok(matches) = json_select(val, &path_str) {
-                                            if let Some(match_val) = matches.first() {
+                                        if let Ok(matches) = json_select(val, &path_str)
+                                            && let Some(match_val) = matches.first() {
                                                 let val_str = match match_val {
                                                     Value::String(s) => s.clone(),
                                                     Value::Number(n) => n.to_string(),
@@ -410,34 +401,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                                 };
                                                 env.variables.insert(var_name, val_str);
                                             }
-                                        }
                                     }
                                 }
                             }
-                        }
                     }
 
                     {
                         let tab = app.active_tab_mut();
                         tab.response_json = None;
                         
-                        if let Some(text_content) = &text_opt {
-                            if let Ok(val) = serde_json::from_str::<Value>(text_content) {
+                        if let Some(text_content) = &text_opt
+                            && let Ok(val) = serde_json::from_str::<Value>(text_content) {
                                 let root = crate::app::JsonEntry::from_value("root".to_string(), &val, 0);
                                 tab.response_json = Some(vec![root]);
                             }
-                        }
 
                         tab.response = Some(text_display.clone());
                         tab.response_bytes = Some(bytes.clone()); // Store raw bytes
                         tab.response_is_binary = is_binary;
                         tab.response_image = None;
                         
-                        if is_binary {
-                             if let Ok(img) = image::load_from_memory(&bytes) {
+                        if is_binary
+                             && let Ok(img) = image::load_from_memory(&bytes) {
                                   tab.response_image = Some(img);
                              }
-                        }
                         tab.response_headers = resp_headers.clone();
 
                         tab.latency = Some(duration);
@@ -460,7 +447,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 status,
                                 text_content,
                                 &resp_headers,
-                                duration as u128,
+                                duration,
                             );
                             let tab = app.active_tab_mut();
                             tab.test_results = result.tests;
@@ -777,17 +764,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     && key.code == KeyCode::Enter
                 {
                     // Check if a run is already in progress
-                    if let Some(ref result) = app.runner_result {
-                        if result.running {
+                    if let Some(ref result) = app.runner_result
+                        && result.running {
                             app.show_notification("Run already in progress...".to_string());
                             handler::handle_key_events(key, &mut app);
                             continue;
                         }
-                    }
 
                     // Get selected collection
-                    if let Some(idx) = app.collection_state.selected() {
-                        if idx < app.collections.len() {
+                    if let Some(idx) = app.collection_state.selected()
+                        && idx < app.collections.len() {
                             let collection = app.collections[idx].clone();
                             let env_vars = if !app.environments.is_empty() {
                                 app.environments[app.selected_env_index].variables.clone()
@@ -803,7 +789,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     .await;
                             });
                         }
-                    }
                     handler::handle_key_events(key, &mut app);
                     continue;
                 }

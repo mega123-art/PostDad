@@ -66,15 +66,14 @@ request "JSONPlaceholder" {
                 let mut requests = HashMap::new();
 
                 for block in body.blocks() {
-                    if block.identifier() == "request" {
-                        if let Some(label) = block.labels().first() {
+                    if block.identifier() == "request"
+                        && let Some(label) = block.labels().first() {
                             let config: RequestConfig = hcl::from_body(block.body().clone())
                                 .map_err(|e| {
                                     std::io::Error::new(std::io::ErrorKind::InvalidData, e)
                                 })?;
                             requests.insert(label.as_str().to_string(), config);
                         }
-                    }
                 }
 
                 let name = path.file_stem().unwrap().to_string_lossy().to_string();
@@ -93,8 +92,8 @@ request "JSONPlaceholder" {
         url: &str,
         body: &str,
         headers: &HashMap<String, String>,
-        extract: &Vec<(String, String)>,
-        form_data: &Vec<(String, String, bool)>,
+        extract: &[(String, String)],
+        form_data: &[(String, String, bool)],
         body_type: &str,
         graphql_query: &str,
         graphql_variables: &str,
@@ -118,7 +117,7 @@ request "JSONPlaceholder" {
         let form_data_opt = if form_data.is_empty() {
             None
         } else {
-            Some(form_data.clone())
+            Some(form_data.to_vec())
         };
 
         let body_opt = if body.trim().is_empty() {
@@ -171,7 +170,7 @@ request "JSONPlaceholder" {
         };
 
         let body_hcl = hcl::to_string(&config)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(std::io::Error::other)?;
 
         let entry = format!("\nrequest \"{}\" {{\n{}\n}}\n", name, body_hcl);
 

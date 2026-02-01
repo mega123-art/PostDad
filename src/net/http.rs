@@ -22,7 +22,9 @@ pub enum NetworkEvent {
         // SSL Configuration
         ssl_verify: bool,
         ssl_ca_cert: Option<Vec<u8>>,      // CA cert bytes (pre-loaded)
+        #[allow(dead_code)]
         ssl_client_cert: Option<Vec<u8>>,  // Client cert bytes
+        #[allow(dead_code)]
         ssl_client_key: Option<Vec<u8>>,   // Client key bytes
         // Proxy Configuration
         proxy_url: Option<String>,
@@ -88,8 +90,8 @@ pub async fn handle_network(
                 timeout_ms,
                 ssl_verify,
                 ssl_ca_cert,
-                ssl_client_cert,
-                ssl_client_key,
+                ssl_client_cert: _,
+                ssl_client_key: _,
                 proxy_url,
                 proxy_auth,
                 no_proxy,
@@ -107,11 +109,10 @@ pub async fn handle_network(
                     .danger_accept_invalid_certs(!ssl_verify);
 
                 // Add custom CA certificate if provided
-                if let Some(ca_bytes) = ssl_ca_cert {
-                    if let Ok(cert) = reqwest::Certificate::from_pem(&ca_bytes) {
+                if let Some(ca_bytes) = ssl_ca_cert
+                    && let Ok(cert) = reqwest::Certificate::from_pem(&ca_bytes) {
                         client_builder = client_builder.add_root_certificate(cert);
                     }
-                }
 
                 // Add client certificate for mTLS if both cert and key provided
                 // Note: native-tls does not support Identity::from_pem. 
@@ -131,15 +132,14 @@ pub async fn handle_network(
                 */
 
                 // Configure proxy if provided
-                if let Some(proxy_str) = proxy_url {
-                    if let Ok(mut proxy) = reqwest::Proxy::all(&proxy_str) {
+                if let Some(proxy_str) = proxy_url
+                    && let Ok(mut proxy) = reqwest::Proxy::all(&proxy_str) {
                         // Add proxy authentication if provided
                         if let Some((user, pass)) = proxy_auth {
                             proxy = proxy.basic_auth(&user, &pass);
                         }
                         client_builder = client_builder.proxy(proxy);
                     }
-                }
                 
                 // Note: no_proxy is passed but reqwest automatically respects 
                 // the NO_PROXY environment variable, so we don't need to handle it explicitly.
@@ -249,11 +249,10 @@ pub async fn handle_network(
                     req_builder = req_builder.header(k, v);
                 }
 
-                if let Ok(resp) = req_builder.send().await {
-                    if let Ok(text) = resp.text().await {
+                if let Ok(resp) = req_builder.send().await
+                    && let Ok(text) = resp.text().await {
                          let _ = sender.send(NetworkEvent::GotSchema(text)).await;
                     }
-                }
             }
             NetworkEvent::RunGrpc {
                 url,

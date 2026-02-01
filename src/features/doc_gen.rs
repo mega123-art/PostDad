@@ -17,18 +17,17 @@ pub fn generate_markdown(collections: &[Collection]) -> String {
                 md.push_str(&format!("### {}\n\n", key));
                 md.push_str(&format!("**{}** `{}`\n\n", req.method, req.url));
 
-                if let Some(headers) = &req.headers {
-                    if !headers.is_empty() {
+                if let Some(headers) = &req.headers
+                    && !headers.is_empty() {
                         md.push_str("#### Headers\n| Key | Value |\n|---|---|\n");
                         for (k, v) in headers {
                             md.push_str(&format!("| {} | {} |\n", k, v));
                         }
-                        md.push_str("\n");
+                        md.push('\n');
                     }
-                }
 
-                if let Some(body) = &req.body {
-                    if !body.trim().is_empty() {
+                if let Some(body) = &req.body
+                    && !body.trim().is_empty() {
                         md.push_str("#### Body\n");
                         // Attempt to detect language, default to json
                         let lang = if body.trim().starts_with('<') { "xml" } else { "json" };
@@ -36,26 +35,23 @@ pub fn generate_markdown(collections: &[Collection]) -> String {
                         md.push_str(body);
                         md.push_str("\n```\n\n");
                     }
-                }
                 
-                if let Some(fd) = &req.form_data {
-                    if !fd.is_empty() {
+                if let Some(fd) = &req.form_data
+                    && !fd.is_empty() {
                         md.push_str("#### Form Data\n| Key | Value | Is File |\n|---|---|---|\n");
                         for (k, v, is_file) in fd {
                              md.push_str(&format!("| {} | {} | {} |\n", k, v, is_file));
                         }
-                         md.push_str("\n");
+                         md.push('\n');
                     }
-                }
 
-                if let Some(gql) = &req.graphql_query {
-                    if !gql.trim().is_empty() {
+                if let Some(gql) = &req.graphql_query
+                    && !gql.trim().is_empty() {
                         md.push_str("#### GraphQL Query\n");
                         md.push_str("```graphql\n");
                         md.push_str(gql);
                         md.push_str("\n```\n\n");
                     }
-                }
             }
         }
         md.push_str("---\n\n");
@@ -439,8 +435,8 @@ pub fn generate_html(collections: &[Collection]) -> String {
                 html.push_str("</div>");
 
                 // Headers
-                if let Some(headers) = &req.headers {
-                    if !headers.is_empty() {
+                if let Some(headers) = &req.headers
+                    && !headers.is_empty() {
                         html.push_str(r#"<div class="section"><div class="section-header"><div class="section-title">Request Headers</div><div class="section-line"></div></div>"#);
                         html.push_str("<table><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>");
                         for (k, v) in headers {
@@ -448,20 +444,18 @@ pub fn generate_html(collections: &[Collection]) -> String {
                         }
                         html.push_str("</tbody></table></div>");
                     }
-                }
 
                 // Body
-                if let Some(body) = &req.body {
-                    if !body.trim().is_empty() {
+                if let Some(body) = &req.body
+                    && !body.trim().is_empty() {
                         html.push_str(r#"<div class="section"><div class="section-header"><div class="section-title">Request Body</div><div class="section-line"></div></div>"#);
                         let escaped = body.replace("<", "&lt;").replace(">", "&gt;");
                         html.push_str(&format!("<pre><code>{}</code></pre></div>", escaped));
                     }
-                }
 
                 // Form Data
-                if let Some(fd) = &req.form_data {
-                    if !fd.is_empty() {
+                if let Some(fd) = &req.form_data
+                    && !fd.is_empty() {
                         html.push_str(r#"<div class="section"><div class="section-header"><div class="section-title">Form Data</div><div class="section-line"></div></div>"#);
                         html.push_str("<table><thead><tr><th>Key</th><th>Value</th><th>Type</th></tr></thead><tbody>");
                         for (k, v, is_file) in fd {
@@ -470,16 +464,14 @@ pub fn generate_html(collections: &[Collection]) -> String {
                         }
                         html.push_str("</tbody></table></div>");
                     }
-                }
                 
                 // GraphQL
-                if let Some(gql) = &req.graphql_query {
-                    if !gql.trim().is_empty() {
+                if let Some(gql) = &req.graphql_query
+                    && !gql.trim().is_empty() {
                          html.push_str(r#"<div class="section"><div class="section-header"><div class="section-title">GraphQL Query</div><div class="section-line"></div></div>"#);
                          let escaped = gql.replace("<", "&lt;").replace(">", "&gt;");
                          html.push_str(&format!("<pre><code>{}</code></pre></div>", escaped));
                     }
-                }
 
                 html.push_str("</div>"); // Close endpoint
             }

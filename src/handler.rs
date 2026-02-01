@@ -21,15 +21,13 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             }
             KeyCode::Enter => {
                 // Select the current service and close modal
-                if !app.active_tab().grpc_services.is_empty() {
-                    if let Some(idx) = app.active_tab().form_list_state.selected() {
-                        if idx < app.active_tab().grpc_services.len() {
+                if !app.active_tab().grpc_services.is_empty()
+                    && let Some(idx) = app.active_tab().form_list_state.selected()
+                        && idx < app.active_tab().grpc_services.len() {
                             let service = app.active_tab().grpc_services[idx].clone();
                             app.active_tab_mut().grpc_service = service;
                             app.active_tab_mut().show_grpc_services_modal = false;
                         }
-                    }
-                }
             }
             KeyCode::Char('j') | KeyCode::Down => {
                 let len = app.active_tab().grpc_services.len();
@@ -49,15 +47,13 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             }
             KeyCode::Char('D') | KeyCode::Char('d') => {
                 // Describe selected service
-                if !app.active_tab().grpc_services.is_empty() {
-                    if let Some(idx) = app.active_tab().form_list_state.selected() {
-                        if idx < app.active_tab().grpc_services.len() {
+                if !app.active_tab().grpc_services.is_empty()
+                    && let Some(idx) = app.active_tab().form_list_state.selected()
+                        && idx < app.active_tab().grpc_services.len() {
                             let service = app.active_tab().grpc_services[idx].clone();
                             app.active_tab_mut().grpc_service_to_describe = service;
                             app.active_tab_mut().should_describe_grpc_service = true;
                         }
-                    }
-                }
             }
             _ => {}
         }
@@ -182,14 +178,13 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             }
             KeyCode::Char(c) => {
                 if app.active_tab().input_mode == InputMode::EditingStressVUs {
-                     if c.is_digit(10) {
+                     if c.is_ascii_digit() {
                          app.stress_vus_input.push(c);
                      }
-                } else if app.active_tab().input_mode == InputMode::EditingStressDuration {
-                     if c.is_digit(10) {
+                } else if app.active_tab().input_mode == InputMode::EditingStressDuration
+                     && c.is_ascii_digit() {
                          app.stress_duration_input.push(c);
                      }
-                }
             }
             KeyCode::Backspace => {
                  if app.active_tab().input_mode == InputMode::EditingStressVUs {
@@ -219,7 +214,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                      app.active_tab_mut().input_mode = InputMode::Normal;
                  }
                  KeyCode::Char(c) => {
-                     if c.is_digit(10) {
+                     if c.is_ascii_digit() {
                          app.sentinel_interval_input.push(c);
                      }
                  }
@@ -271,11 +266,10 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
         match key_event.code {
             KeyCode::Char('h') => {
                 app.active_sidebar = !app.active_sidebar;
-                if app.active_sidebar {
-                    if app.collection_state.selected().is_none() {
+                if app.active_sidebar
+                    && app.collection_state.selected().is_none() {
                         app.collection_state.select(Some(0));
                     }
-                }
                 return;
             }
             KeyCode::Char('e') => {
@@ -332,12 +326,11 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                  });
             }
             KeyCode::Char('d') => {
-                if let Some(selected) = app.mock_list_state.selected() {
-                    if selected < app.mock_routes.len() {
+                if let Some(selected) = app.mock_list_state.selected()
+                    && selected < app.mock_routes.len() {
                         app.mock_routes.remove(selected);
                         app.restart_mock_server_if_running();
                     }
-                }
             }
             KeyCode::Char('j') | KeyCode::Down => {
                 let i = match app.mock_list_state.selected() {
@@ -762,13 +755,12 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                         }
                     }
                     2 => {
-                        if app.active_tab().body_type == crate::app::BodyType::FormData {
-                            if !app.active_tab().form_data.is_empty() && app.active_tab().form_list_state.selected().is_some()
+                        if app.active_tab().body_type == crate::app::BodyType::FormData
+                            && !app.active_tab().form_data.is_empty() && app.active_tab().form_list_state.selected().is_some()
                             {
                                 app.active_tab_mut().input_mode = InputMode::EditingFormKey;
                                 handled = true;
                             }
-                        }
                     }
                     3 => {
                         if app.active_tab().auth_type == crate::app::AuthType::Bearer {
@@ -1006,8 +998,8 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 if selected_tab == 0 {
                     let i = app.active_tab().params_list_state.selected();
                     let len = app.active_tab().params.len();
-                    if let Some(i) = i {
-                        if len > 0 && i < len {
+                    if let Some(i) = i
+                        && len > 0 && i < len {
                             app.active_tab_mut().params.remove(i);
                             app.sync_params_to_url();
                             
@@ -1018,12 +1010,11 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                                 app.active_tab_mut().params_list_state.select(Some(new_len - 1));
                             }
                         }
-                    }
                 } else if selected_tab == 2 && body_type == crate::app::BodyType::FormData {
                     let i = app.active_tab().form_list_state.selected();
                     let len = app.active_tab().form_data.len();
-                    if let Some(i) = i {
-                        if len > 0 && i < len {
+                    if let Some(i) = i
+                        && len > 0 && i < len {
                             app.active_tab_mut().form_data.remove(i);
                             
                             let new_len = app.active_tab().form_data.len();
@@ -1033,12 +1024,11 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                                 app.active_tab_mut().form_list_state.select(Some(new_len - 1));
                             }
                         }
-                    }
                 } else if selected_tab == 4 {
                     let i = app.active_tab().extract_list_state.selected();
                     let len = app.active_tab().extract_rules.len();
-                    if let Some(i) = i {
-                        if len > 0 && i < len {
+                    if let Some(i) = i
+                        && len > 0 && i < len {
                             app.active_tab_mut().extract_rules.remove(i);
                             
                             let new_len = app.active_tab().extract_rules.len();
@@ -1048,7 +1038,6 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                                 app.active_tab_mut().extract_list_state.select(Some(new_len - 1));
                             }
                         }
-                    }
                 }
             }
 
@@ -1062,11 +1051,10 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 };
 
                 if selected_tab == 2 && body_type == crate::app::BodyType::FormData {
-                     if let Some(i) = i_form {
-                        if let Some(row) = app.active_tab_mut().form_data.get_mut(i) {
+                     if let Some(i) = i_form
+                        && let Some(row) = app.active_tab_mut().form_data.get_mut(i) {
                             row.2 = !row.2;
                         }
-                    }
                 } else {
                     app.toggle_current_selection();
                 }
@@ -1206,13 +1194,12 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             }
             KeyCode::Char('y') => {
                 let tab = app.active_tab();
-                if let Some(selected_idx) = tab.json_list_state.selected() {
-                    if let Some(entries) = &tab.response_json {
+                if let Some(selected_idx) = tab.json_list_state.selected()
+                    && let Some(entries) = &tab.response_json {
                         let filter = &tab.search_query;
                         let path = crate::ui::get_json_path(entries, selected_idx, filter);
                         app.copy_to_clipboard(path);
                     }
-                }
             }
             KeyCode::Char('Q') => {
                 if app.active_tab().selected_tab == 2 && app.active_tab().body_type == crate::app::BodyType::GraphQL {
@@ -1443,19 +1430,17 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             KeyCode::Esc => app.active_tab_mut().input_mode = InputMode::Normal,
             KeyCode::Char(c) => {
                 let i = app.active_tab().extract_list_state.selected();
-                if let Some(i) = i {
-                    if let Some(rule) = app.active_tab_mut().extract_rules.get_mut(i) {
+                if let Some(i) = i
+                    && let Some(rule) = app.active_tab_mut().extract_rules.get_mut(i) {
                         rule.0.push(c);
                     }
-                }
             }
             KeyCode::Backspace => {
                 let i = app.active_tab().extract_list_state.selected();
-                if let Some(i) = i {
-                    if let Some(rule) = app.active_tab_mut().extract_rules.get_mut(i) {
+                if let Some(i) = i
+                    && let Some(rule) = app.active_tab_mut().extract_rules.get_mut(i) {
                         rule.0.pop();
                     }
-                }
             }
             _ => {}
         },
@@ -1464,19 +1449,17 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             KeyCode::Esc => app.active_tab_mut().input_mode = InputMode::Normal,
             KeyCode::Char(c) => {
                 let i = app.active_tab().extract_list_state.selected();
-                if let Some(i) = i {
-                    if let Some(rule) = app.active_tab_mut().extract_rules.get_mut(i) {
+                if let Some(i) = i
+                    && let Some(rule) = app.active_tab_mut().extract_rules.get_mut(i) {
                         rule.1.push(c);
                     }
-                }
             }
             KeyCode::Backspace => {
                 let i = app.active_tab().extract_list_state.selected();
-                if let Some(i) = i {
-                    if let Some(rule) = app.active_tab_mut().extract_rules.get_mut(i) {
+                if let Some(i) = i
+                    && let Some(rule) = app.active_tab_mut().extract_rules.get_mut(i) {
                         rule.1.pop();
                     }
-                }
             }
             _ => {}
         },
@@ -1485,19 +1468,17 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             KeyCode::Esc => app.active_tab_mut().input_mode = InputMode::Normal,
             KeyCode::Char(c) => {
                 let i = app.active_tab().form_list_state.selected();
-                if let Some(i) = i {
-                    if let Some(row) = app.active_tab_mut().form_data.get_mut(i) {
+                if let Some(i) = i
+                    && let Some(row) = app.active_tab_mut().form_data.get_mut(i) {
                         row.0.push(c);
                     }
-                }
             }
             KeyCode::Backspace => {
                 let i = app.active_tab().form_list_state.selected();
-                if let Some(i) = i {
-                    if let Some(row) = app.active_tab_mut().form_data.get_mut(i) {
+                if let Some(i) = i
+                    && let Some(row) = app.active_tab_mut().form_data.get_mut(i) {
                         row.0.pop();
                     }
-                }
             }
             _ => {}
         },
@@ -1506,19 +1487,17 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
             KeyCode::Esc => app.active_tab_mut().input_mode = InputMode::Normal,
             KeyCode::Char(c) => {
                 let i = app.active_tab().form_list_state.selected();
-                if let Some(i) = i {
-                    if let Some(row) = app.active_tab_mut().form_data.get_mut(i) {
+                if let Some(i) = i
+                    && let Some(row) = app.active_tab_mut().form_data.get_mut(i) {
                         row.1.push(c);
                     }
-                }
             }
             KeyCode::Backspace => {
                 let i = app.active_tab().form_list_state.selected();
-                if let Some(i) = i {
-                    if let Some(row) = app.active_tab_mut().form_data.get_mut(i) {
+                if let Some(i) = i
+                    && let Some(row) = app.active_tab_mut().form_data.get_mut(i) {
                         row.1.pop();
                     }
-                }
             }
             _ => {}
         },

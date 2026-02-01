@@ -350,8 +350,8 @@ pub fn run_post_script(
     engine.register_fn("json_path", move |query: &str| -> String {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&body_json) {
             let mut selector = jsonpath_lib::selector(&json);
-            if let Ok(matches) = selector(query) {
-                if let Some(first) = matches.first() {
+            if let Ok(matches) = selector(query)
+                && let Some(first) = matches.first() {
                     // Return raw string or json string?
                     if let Some(s) = first.as_str() {
                         return s.to_string();
@@ -359,7 +359,6 @@ pub fn run_post_script(
                         return first.to_string();
                     }
                 }
-            }
         }
         String::new()
     });

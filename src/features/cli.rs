@@ -1,5 +1,5 @@
 // CLI mode for running requests without the TUI
-use crate::domain::collection::{Collection, RequestConfig};
+use crate::domain::collection::Collection;
 use crate::domain::environment::Environment;
 use crate::features::runner::{self, RunResult, RunnerEvent};
 use std::collections::HashMap;
@@ -226,13 +226,12 @@ fn load_collection(path: &str) -> Result<Collection, String> {
     let mut requests = HashMap::new();
     
     for block in body.blocks() {
-        if block.identifier() == "request" {
-            if let Some(label) = block.labels().first() {
+        if block.identifier() == "request"
+            && let Some(label) = block.labels().first() {
                 let config: crate::domain::collection::RequestConfig = hcl::from_body(block.body().clone())
                     .map_err(|e| format!("Failed to parse request '{}': {}", label.as_str(), e))?;
                 requests.insert(label.as_str().to_string(), config);
             }
-        }
     }
     
     if requests.is_empty() {
@@ -275,7 +274,7 @@ fn print_result(result: &RunResult, verbose: bool) {
         .unwrap_or_else(|| "ERR".to_string());
     
     let status_color = match result.status {
-        Some(s) if s >= 200 && s < 300 => colors::GREEN,
+        Some(s) if (200..300).contains(&s) => colors::GREEN,
         Some(s) if s >= 400 => colors::RED,
         Some(_) => colors::YELLOW,
         None => colors::RED,

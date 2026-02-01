@@ -1,6 +1,5 @@
 use crate::domain::collection::{Collection, RequestConfig};
 use crate::features::scripting;
-use crate::net::http;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
@@ -129,8 +128,8 @@ pub async fn run_collection(
         let mut body = config.body.clone();
 
         // Run Pre-Request Script
-        if let Some(script) = &config.pre_request_script {
-            if !script.trim().is_empty() {
+        if let Some(script) = &config.pre_request_script
+            && !script.trim().is_empty() {
                 let script_result = scripting::run_script(
                     script,
                     &config.method,
@@ -153,7 +152,6 @@ pub async fn run_collection(
                     current_env_vars.insert(k, v);
                 }
             }
-        }
 
         // Execute the request
         let start = std::time::Instant::now();
@@ -168,8 +166,8 @@ pub async fn run_collection(
                 let mut tests = Vec::new();
 
                 // Run Post-Request Script
-                if let Some(script) = &config.post_request_script {
-                    if !script.trim().is_empty() {
+                if let Some(script) = &config.post_request_script
+                    && !script.trim().is_empty() {
                         let script_res = scripting::run_post_script(
                             script,
                             status,
@@ -179,7 +177,6 @@ pub async fn run_collection(
                         );
                         tests = script_res.tests;
                     }
-                }
 
                 // Passed if status matches AND all tests passed
                 let tests_passed = tests.iter().all(|(_, p)| *p);

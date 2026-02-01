@@ -51,15 +51,14 @@ pub fn execute_grpc_request(
     }
     
     // Add proto file if specified
-    if let Some(proto) = proto_path {
-        if !proto.is_empty() {
+    if let Some(proto) = proto_path
+        && !proto.is_empty() {
             // Extract import path (directory containing the proto file)
             if let Some(parent) = std::path::Path::new(proto).parent() {
                 cmd.arg("-import-path").arg(parent);
             }
             cmd.arg("-proto").arg(proto);
         }
-    }
     
     // Add headers as metadata
     for (key, value) in headers {

@@ -5,7 +5,7 @@ fn create_app_with_env(vars: Vec<(&str, &str)>) -> App {
     // Use the active environment (index 0 usually "None", let's use index 0 and populate it for test)
     // App::new() might load envs, but let's just make sure we have one.
     if app.environments.is_empty() {
-        app.environments.push(crate::environment::Environment {
+        app.environments.push(crate::domain::environment::Environment {
             name: "Test".to_string(),
             variables: std::collections::HashMap::new(),
         });

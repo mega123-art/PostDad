@@ -127,7 +127,7 @@ pub fn get_json_path(entries: &[JsonEntry], target_idx: usize, filter: &str) -> 
     let mut current_idx = 0;
     find_path_by_index(entries, target_idx, &mut current_idx, filter, String::new())
         .map(|path| format!("$.{}", path))
-        .unwrap_or_else(String::new)
+        .unwrap_or_default()
 }
 
 fn find_path_by_index(
@@ -360,11 +360,10 @@ pub fn render(f: &mut Frame, app: &mut App) {
                         Span::raw(&log.url),
                     ];
 
-                    if let Some(base_idx) = app.diff_base_index {
-                        if base_idx == i {
+                    if let Some(base_idx) = app.diff_base_index
+                        && base_idx == i {
                             spans.insert(0, Span::styled("[BASE] ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)));
                         }
-                    }
 
                     let content = Line::from(spans);
 
@@ -467,7 +466,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 .border_style(Style::default().fg(url_border_color)),
         );
 
-        let titles = vec!["Params", "Headers", "Body", "Auth", "Chain"]
+        let titles = ["Params", "Headers", "Body", "Auth", "Chain"]
             .iter()
             .cloned()
             .map(ratatui::text::Line::from)
@@ -1065,7 +1064,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
             let chunks = ratatui::layout::Layout::default()
                 .direction(ratatui::layout::Direction::Vertical)
-                .constraints(&[size, ratatui::layout::Constraint::Min(0)])
+                .constraints([size, ratatui::layout::Constraint::Min(0)])
                 .split(area);
 
             let test_area = chunks[0];
@@ -1145,9 +1144,9 @@ pub fn render(f: &mut Frame, app: &mut App) {
         } else {
             match (status_code, latency) {
                 (Some(code), Some(ms)) => {
-                    let status_emoji = if code >= 200 && code < 300 {
+                    let status_emoji = if (200..300).contains(&code) {
                         "✓"
-                    } else if code >= 400 && code < 500 {
+                    } else if (400..500).contains(&code) {
                         "⚠"
                     } else if code >= 500 {
                         "✗"
@@ -1166,7 +1165,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     s
                 }
                 (Some(code), None) => {
-                    let status_emoji = if code >= 200 && code < 300 {
+                    let status_emoji = if (200..300).contains(&code) {
                         "✓"
                     } else if code >= 400 {
                         "✗"
@@ -1180,7 +1179,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         };
 
         let status_style = if let Some(code) = status_code {
-            if code >= 200 && code < 300 {
+            if (200..300).contains(&code) {
                 Style::default().fg(app.theme.success)
             } else if code >= 400 {
                 Style::default().fg(app.theme.error)
@@ -1239,14 +1238,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
         } else if app.active_tab().response_is_binary {
              let img_opt = app.active_tab().response_image.clone();
              
-             if let Some(img) = img_opt {
-                  if let Some(picker) = &mut app.image_picker {
+             if let Some(img) = img_opt
+                  && let Some(picker) = &mut app.image_picker {
                        let mut protocol = picker.new_resize_protocol(img);
                        let widget = StatefulImage::new();
                        f.render_stateful_widget(widget, main_area, &mut protocol);
                        return;
                   }
-             }
 
              let size = app.active_tab().response_bytes.as_ref().map(|b| b.len()).unwrap_or(0);
              let content = vec![
@@ -1480,7 +1478,7 @@ fn render_runner_mode(f: &mut Frame, app: &mut App) {
         result_items.push(ListItem::new("─".repeat(50)));
 
         // Individual results
-        for (_i, run) in result.results.iter().enumerate() {
+        for run in result.results.iter() {
             let status_icon = if run.passed {
                 Span::styled(
                     "✓ ",
@@ -1946,8 +1944,8 @@ fn centered_rect(
 }
 
 pub fn render_diff_view(f: &mut Frame, app: &mut App) {
-    if let (Some(base_idx), Some(target_idx)) = (app.diff_base_index, app.diff_target_index) {
-        if let (Some(base), Some(target)) = (
+    if let (Some(base_idx), Some(target_idx)) = (app.diff_base_index, app.diff_target_index)
+        && let (Some(base), Some(target)) = (
             app.request_history.get(base_idx),
             app.request_history.get(target_idx),
         ) {
@@ -2021,7 +2019,6 @@ pub fn render_diff_view(f: &mut Frame, app: &mut App) {
                 &mut app.diff_list_state,
             );
         }
-    }
 }
 
 pub fn render_mock_mode(f: &mut Frame, app: &mut App) {

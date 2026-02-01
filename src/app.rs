@@ -660,12 +660,12 @@ impl App {
             return;
         }
 
-        if let Ok(parsed) = reqwest::Url::parse(url) {
-            if let Some(host) = parsed.host_str() {
+        if let Ok(parsed) = reqwest::Url::parse(url)
+            && let Some(host) = parsed.host_str() {
                 let entry = self
                     .cookie_jar
                     .entry(host.to_string())
-                    .or_insert_with(Vec::new);
+                    .or_default();
                 for raw_cookie in new_cookies {
                     let name_val = raw_cookie
                         .split(';')
@@ -684,19 +684,15 @@ impl App {
                 }
                 self.save_cookies();
             }
-        }
     }
 
     pub fn get_cookie_header(&self, url: &str) -> Option<String> {
-        if let Ok(parsed) = reqwest::Url::parse(url) {
-            if let Some(host) = parsed.host_str() {
-                if let Some(cookies) = self.cookie_jar.get(host) {
-                    if !cookies.is_empty() {
+        if let Ok(parsed) = reqwest::Url::parse(url)
+            && let Some(host) = parsed.host_str()
+                && let Some(cookies) = self.cookie_jar.get(host)
+                    && !cookies.is_empty() {
                         return Some(cookies.join("; "));
                     }
-                }
-            }
-        }
         None
     }
 
@@ -713,17 +709,15 @@ impl App {
 
     pub fn delete_cookie_at_index(&mut self, index: usize) {
         let flattened = self.get_flattened_cookies();
-        if let Some((host, cookie_val)) = flattened.get(index) {
-            if let Some(cookies) = self.cookie_jar.get_mut(host) {
-                if let Some(pos) = cookies.iter().position(|c| c == cookie_val) {
+        if let Some((host, cookie_val)) = flattened.get(index)
+            && let Some(cookies) = self.cookie_jar.get_mut(host)
+                && let Some(pos) = cookies.iter().position(|c| c == cookie_val) {
                     cookies.remove(pos);
                     if cookies.is_empty() {
                         self.cookie_jar.remove(host);
                     }
                     self.save_cookies();
                 }
-            }
-        }
     }
 
     pub fn should_open_editor(&self) -> bool {
@@ -799,11 +793,10 @@ impl App {
     }
 
     fn load_history() -> Vec<RequestLog> {
-        if let Ok(content) = std::fs::read_to_string("history.json") {
-            if let Ok(history) = serde_json::from_str(&content) {
+        if let Ok(content) = std::fs::read_to_string("history.json")
+            && let Ok(history) = serde_json::from_str(&content) {
                 return history;
             }
-        }
         Vec::new()
     }
 
@@ -832,11 +825,10 @@ impl App {
     }
 
     fn load_config() -> AppConfig {
-        if let Ok(content) = std::fs::read_to_string("config.json") {
-            if let Ok(config) = serde_json::from_str(&content) {
+        if let Ok(content) = std::fs::read_to_string("config.json")
+            && let Ok(config) = serde_json::from_str(&content) {
                 return config;
             }
-        }
         AppConfig::default()
     }
 
@@ -852,11 +844,10 @@ impl App {
     }
 
     fn load_cookies() -> std::collections::HashMap<String, Vec<String>> {
-        if let Ok(content) = std::fs::read_to_string("cookies.json") {
-             if let Ok(cookies) = serde_json::from_str(&content) {
+        if let Ok(content) = std::fs::read_to_string("cookies.json")
+             && let Ok(cookies) = serde_json::from_str(&content) {
                  return cookies;
              }
-        }
         std::collections::HashMap::new()
     }
 
@@ -1060,8 +1051,8 @@ impl App {
                 }
             } else if idx > collection_count + 2 {
                 let history_idx = idx - (collection_count + 3);
-                if history_idx < self.request_history.len() {
-                    if let Some(log) = self.request_history.get(history_idx).cloned() {
+                if history_idx < self.request_history.len()
+                    && let Some(log) = self.request_history.get(history_idx).cloned() {
                         let tab = self.active_tab_mut();
                         tab.method = log.method.clone();
                         tab.url = log.url.clone();
@@ -1086,7 +1077,6 @@ impl App {
 
                         self.popup_message = Some("Restored from history".to_string());
                     }
-                }
             }
         }
     }
@@ -1234,11 +1224,10 @@ impl App {
             {
                 let mut schema_types = Vec::new();
                 for t in types {
-                    if let Some(name) = t.get("name").and_then(|n| n.as_str()) {
-                        if !name.starts_with("__") {
+                    if let Some(name) = t.get("name").and_then(|n| n.as_str())
+                        && !name.starts_with("__") {
                             schema_types.push(name.to_string());
                         }
-                    }
                 }
                 schema_types.sort();
                 self.active_tab_mut().graphql_schema_types = schema_types;
@@ -1532,14 +1521,13 @@ impl App {
         for (k, v) in &tab.request_headers {
             code.push_str(&format!("    \"{}\": \"{}\",\n", k, v));
         }
-        if tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2 {
-            if !tab.auth_token.is_empty() {
+        if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
+            && !tab.auth_token.is_empty() {
                 code.push_str(&format!(
                     "    \"Authorization\": \"Bearer {}\",\n",
                     tab.auth_token
                 ));
             }
-        }
         code.push_str("}\n\n");
 
         match tab.body_type {
@@ -1595,14 +1583,13 @@ impl App {
         for (k, v) in &tab.request_headers {
             code.push_str(&format!("    '{}': '{}',\n", k, v));
         }
-        if tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2 {
-            if !tab.auth_token.is_empty() {
+        if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
+            && !tab.auth_token.is_empty() {
                 code.push_str(&format!(
                     "    'Authorization': 'Bearer {}',\n",
                     tab.auth_token
                 ));
             }
-        }
         code.push_str("  },\n");
 
         if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
@@ -1672,11 +1659,10 @@ impl App {
             code.push_str(&format!("\treq.Header.Add(\"{}\", \"{}\")\n", k, v));
         }
 
-        if tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2 {
-             if !tab.auth_token.is_empty() {
+        if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
+             && !tab.auth_token.is_empty() {
                  code.push_str(&format!("\treq.Header.Add(\"Authorization\", \"Bearer {}\")\n", tab.auth_token));
              }
-        }
 
         code.push_str("\n\tres, err := client.Do(req)\n");
         code.push_str("\tif err != nil {\n\t\tfmt.Println(err)\n\t\treturn\n\t}\n");
@@ -1711,11 +1697,10 @@ impl App {
             code.push_str(&format!("\t\t.header(\"{}\", \"{}\")\n", k, v));
         }
         
-        if tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2 {
-            if !tab.auth_token.is_empty() {
+        if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
+            && !tab.auth_token.is_empty() {
                 code.push_str(&format!("\t\t.bearer_auth(\"{}\")\n", tab.auth_token));
             }
-        }
 
         if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
              let safe_body = tab.request_body.replace("\"", "\\\"");
@@ -1748,11 +1733,10 @@ impl App {
              code.push_str(&format!("request[\"{}\"] = \"{}\"\n", k, v));
         }
         
-        if tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2 {
-            if !tab.auth_token.is_empty() {
+        if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
+            && !tab.auth_token.is_empty() {
                  code.push_str(&format!("request[\"Authorization\"] = \"Bearer {}\"\n", tab.auth_token));
             }
-        }
 
         if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
             let safe_body = tab.request_body.replace("\"", "\\\"");
@@ -1763,13 +1747,13 @@ impl App {
             code.push_str("body = []\n");
             for (k, v, is_file) in &tab.form_data {
                 if *is_file {
-                    code.push_str(&format!("body << \"--#{{boundary}}\\r\\n\"\n"));
+                    code.push_str("body << \"--#{boundary}\\r\\n\"\n");
                     code.push_str(&format!("body << \"Content-Disposition: form-data; name=\\\"{}\\\"; filename=\\\"{}\\\"\\r\\n\"\n", k, v));
                     code.push_str("body << \"Content-Type: application/octet-stream\\r\\n\\r\\n\"\n");
                     code.push_str(&format!("body << File.read(\"{}\")\n", v));
                     code.push_str("body << \"\\r\\n\"\n");
                 } else {
-                    code.push_str(&format!("body << \"--#{{boundary}}\\r\\n\"\n"));
+                    code.push_str("body << \"--#{boundary}\\r\\n\"\n");
                     code.push_str(&format!("body << \"Content-Disposition: form-data; name=\\\"{}\\\";\\r\\n\\r\\n\"\n", k));
                     code.push_str(&format!("body << \"{}\\r\\n\"\n", v));
                 }
@@ -1809,11 +1793,10 @@ impl App {
          for (k, v) in &tab.request_headers {
               code.push_str(&format!("    '{}: {}',\n", k, v));
          }
-         if tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2 {
-             if !tab.auth_token.is_empty() {
+         if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
+             && !tab.auth_token.is_empty() {
                  code.push_str(&format!("    'Authorization: Bearer {}',\n", tab.auth_token));
              }
-         }
          code.push_str("  ),\n));\n\n$response = curl_exec($curl);\n\ncurl_close($curl);\necho $response;\n");
          code
     }
@@ -1830,11 +1813,10 @@ impl App {
             code.push_str(&format!("request.Headers.Add(\"{}\", \"{}\");\n", k, v));
         }
         
-        if tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2 {
-            if !tab.auth_token.is_empty() {
+        if (tab.auth_type == AuthType::Bearer || tab.auth_type == AuthType::OAuth2)
+            && !tab.auth_token.is_empty() {
                 code.push_str(&format!("request.Headers.Add(\"Authorization\", \"Bearer {}\");\n", tab.auth_token));
             }
-        }
 
         if tab.body_type == BodyType::Raw && !tab.request_body.is_empty() {
              let safe_body = tab.request_body.replace("\"", "\\\"");
@@ -1894,26 +1876,24 @@ impl App {
 
     pub fn toggle_current_selection(&mut self) {
         let tab = self.active_tab_mut();
-        if let Some(selected_idx) = tab.json_list_state.selected() {
-            if let Some(entries) = &mut tab.response_json {
+        if let Some(selected_idx) = tab.json_list_state.selected()
+            && let Some(entries) = &mut tab.response_json {
                 let mut current_idx = selected_idx;
                 if let Some(node) = Self::get_mut_node_at_index(entries, &mut current_idx) {
                     node.is_expanded = !node.is_expanded;
                 }
             }
-        }
     }
 
     pub fn set_expanded_current_selection(&mut self, expanded: bool) {
         let tab = self.active_tab_mut();
-        if let Some(selected_idx) = tab.json_list_state.selected() {
-            if let Some(entries) = &mut tab.response_json {
+        if let Some(selected_idx) = tab.json_list_state.selected()
+            && let Some(entries) = &mut tab.response_json {
                 let mut current_idx = selected_idx;
                 if let Some(node) = Self::get_mut_node_at_index(entries, &mut current_idx) {
                     node.is_expanded = expanded;
                 }
             }
-        }
     }
 
     pub fn duplicate_tab(&mut self) {
@@ -1963,12 +1943,11 @@ impl App {
             }
             *target_index -= 1;
 
-            if entry.is_expanded {
-                if let Some(child) = Self::get_mut_node_at_index(&mut entry.children, target_index)
+            if entry.is_expanded
+                && let Some(child) = Self::get_mut_node_at_index(&mut entry.children, target_index)
                 {
                     return Some(child);
                 }
-            }
         }
         None
     }
@@ -2024,7 +2003,7 @@ impl App {
             let count = Self::count_visible(entries);
             if count > 0 {
                 let current = tab.json_list_state.selected().unwrap_or(0);
-                let next = if current > 10 { current - 10 } else { 0 };
+                let next = current.saturating_sub(10);
                 tab.json_list_state.select(Some(next));
                 return;
             }

@@ -93,7 +93,7 @@ pub fn import_postman_collection(file_path: &str) -> std::io::Result<()> {
 
     for (name, config) in &collection.requests {
         let body_hcl = hcl::to_string(&config)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(std::io::Error::other)?;
 
         let entry = format!("\nrequest \"{}\" {{\n{}\n}}\n", name, body_hcl);
         hcl_content.push_str(&entry);
@@ -289,14 +289,13 @@ pub fn import_openapi(file_path: &str) -> std::io::Result<()> {
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, format!("Invalid OpenAPI JSON: {}", e)))?;
 
     // Validate it's OpenAPI v3
-    if let Some(ref version) = spec.openapi {
-        if !version.starts_with("3.") {
+    if let Some(ref version) = spec.openapi
+        && !version.starts_with("3.") {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidData,
                 format!("Unsupported OpenAPI version: {}. Only v3.x is supported.", version),
             ));
         }
-    }
 
     // Get base URL from servers
     let base_url = spec
@@ -433,7 +432,7 @@ pub fn import_openapi(file_path: &str) -> std::io::Result<()> {
 
     for (name, config) in &collection.requests {
         let body_hcl = hcl::to_string(&config)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            .map_err(std::io::Error::other)?;
 
         let entry = format!("\nrequest \"{}\" {{\n{}\n}}\n", name, body_hcl);
         hcl_content.push_str(&entry);
@@ -459,11 +458,10 @@ fn get_example_value(schema: &Option<OpenApiSchema>) -> String {
         if let Some(default) = &s.default {
             return default.to_string().trim_matches('"').to_string();
         }
-        if let Some(enum_vals) = &s.enum_values {
-            if let Some(first) = enum_vals.first() {
+        if let Some(enum_vals) = &s.enum_values
+            && let Some(first) = enum_vals.first() {
                 return first.to_string().trim_matches('"').to_string();
             }
-        }
         // Return type-based placeholder
         match s.schema_type.as_deref() {
             Some("string") => "example".to_string(),
@@ -490,11 +488,10 @@ fn schema_to_value(schema: &OpenApiSchema) -> serde_json::Value {
     if let Some(default) = &schema.default {
         return default.clone();
     }
-    if let Some(enum_vals) = &schema.enum_values {
-        if let Some(first) = enum_vals.first() {
+    if let Some(enum_vals) = &schema.enum_values
+        && let Some(first) = enum_vals.first() {
             return first.clone();
         }
-    }
 
     match schema.schema_type.as_deref() {
         Some("object") => {

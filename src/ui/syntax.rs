@@ -11,13 +11,13 @@ static SYNTAX_SET: OnceLock<SyntaxSet> = OnceLock::new();
 static THEME_SET: OnceLock<ThemeSet> = OnceLock::new();
 
 pub fn init() {
-    SYNTAX_SET.get_or_init(|| SyntaxSet::load_defaults_newlines());
-    THEME_SET.get_or_init(|| ThemeSet::load_defaults());
+    SYNTAX_SET.get_or_init(SyntaxSet::load_defaults_newlines);
+    THEME_SET.get_or_init(ThemeSet::load_defaults);
 }
 
 pub fn highlight<'a>(text: &'a str, extension: &str) -> Vec<Line<'a>> {
-    let ps = SYNTAX_SET.get_or_init(|| SyntaxSet::load_defaults_newlines());
-    let ts = THEME_SET.get_or_init(|| ThemeSet::load_defaults());
+    let ps = SYNTAX_SET.get_or_init(SyntaxSet::load_defaults_newlines);
+    let ts = THEME_SET.get_or_init(ThemeSet::load_defaults);
 
     // Find syntax
     let syntax = ps
