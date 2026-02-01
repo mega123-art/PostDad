@@ -186,9 +186,25 @@ A live TUI monitoring dashboard for your API endpoints.
    - **Key Metrics**: Total checks, failed checks, and last latency.
 3. **Controls**:
    - `S`: Start/Stop monitoring.
-   - `i`: Set check interval (seconds).
    - `L`: Save history to CSV log.
    - `Esc`: Exit dashboard.
+
+### Sentinel Failure Conditions
+
+By default, Sentinel alerts on non-200 status codes. You can also fail on specific response content using the `X-Fail-If` header configuration (hidden from actual request).
+
+1. In Header tab, add `X-Fail-If` with a keyword (e.g., `error_code":"500`).
+2. If that keyword appears in the response body, Sentinel marks it as a failure (Status 500).
+
+### Documentation Generator
+
+Generate offline documentation for your collections in one keystroke.
+
+1. Press `M` (or use Command Palette: `Export HTML Docs`).
+2. Generates:
+   - `API_DOCS.md`: Markdown file for Git/Wiki.
+   - `API_DOCS.html`: Single-page, beautiful HTML site with sidebar navigation and search.
+3. Both files are saved to your current directory.
 
 ### Environments
 

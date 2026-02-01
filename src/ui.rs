@@ -1380,7 +1380,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             "  T          Edit Post/Test Script",
             "  %          Stress Test (Shift+5)",
             "  S          Sentinel Mode (Live Monitor)",
-            "  M          Generate API Docs (Markdown)",
+            "  M          Generate API Docs (MD + HTML)",
             "",
             "Modes:",
             "  Ctrl+w     Toggle WebSocket Mode",
