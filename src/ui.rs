@@ -617,7 +617,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                         crate::app::BodyType::GraphQL => "GraphQL",
                         crate::app::BodyType::Grpc => "gRPC (Proto)",
                     };
-                    let main_title = format!(" Body: {} (Press 'm' to switch) ", type_str);
+                    let main_title = format!(" Body: {} (Press 't' to switch) ", type_str);
 
                     match body_type {
                         crate::app::BodyType::Raw => {
@@ -1342,6 +1342,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             "Request:",
             "  e          Edit URL (Tab to Cycle Method)",
             "  m          Cycle Method (GET, POST, ...)",
+            "  t          Switch Body Type (in Body Tab)",
             "  b          Edit Body (Ext. Editor)",
             "  Q / V      Edit GraphQL Query / Vars",
             "  H          Edit Headers (Ext. Editor)",
@@ -1388,7 +1389,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             "  Ctrl+k     Mock Server Manager",
             "  Ctrl+j     Cookie Manager",
             "",
-            "gRPC (Body Tab -> 'm' to gRPC mode):",
+            "gRPC (Body Tab -> 't' to gRPC mode):",
             "  u          Edit Service/Method",
             "  p          Edit Proto file path",
             "  L          List services (reflection)",
