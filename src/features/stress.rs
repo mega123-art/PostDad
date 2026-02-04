@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 use std::time::{Duration, Instant};
+use tokio::sync::mpsc;
 
 #[derive(Clone, Debug)]
 pub struct StressConfig {
@@ -39,10 +39,7 @@ pub enum StressEvent {
     Error(String),
 }
 
-pub async fn run_stress_test(
-    config: StressConfig,
-    tx: mpsc::Sender<StressEvent>,
-) {
+pub async fn run_stress_test(config: StressConfig, tx: mpsc::Sender<StressEvent>) {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(10))
         .pool_max_idle_per_host(config.concurrency as usize)
@@ -59,7 +56,7 @@ pub async fn run_stress_test(
         let client = client.clone();
         let config = config.clone();
         let res_tx = res_tx.clone();
-        
+
         tokio::spawn(async move {
             while start_time.elapsed() < duration {
                 let req_start = Instant::now();
@@ -72,7 +69,7 @@ pub async fn run_stress_test(
                 };
 
                 let mut req_builder = client.request(method, &config.url);
-                
+
                 for (k, v) in &config.headers {
                     req_builder = req_builder.header(k, v);
                 }
@@ -116,10 +113,12 @@ pub async fn run_stress_test(
         }
 
         if last_tick.elapsed() >= Duration::from_millis(500) {
-            let _ = tx.send(StressEvent::Progress {
-                requests_done: latencies.len() as u64,
-                elapsed_secs: start_time.elapsed().as_secs(),
-            }).await;
+            let _ = tx
+                .send(StressEvent::Progress {
+                    requests_done: latencies.len() as u64,
+                    elapsed_secs: start_time.elapsed().as_secs(),
+                })
+                .await;
             last_tick = Instant::now();
         }
     }
@@ -156,6 +155,8 @@ pub async fn run_stress_test(
 
         let _ = tx.send(StressEvent::Finished(stats)).await;
     } else {
-        let _ = tx.send(StressEvent::Error("No requests completed".to_string())).await;
+        let _ = tx
+            .send(StressEvent::Error("No requests completed".to_string()))
+            .await;
     }
 }

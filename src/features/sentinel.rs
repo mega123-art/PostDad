@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc;
 
-
 #[derive(Clone, Debug)]
 pub struct SentinelConfig {
     pub url: String,
@@ -51,7 +50,7 @@ impl SentinelState {
     pub fn add_result(&mut self, result: SentinelResult) {
         self.total_checks += 1;
         self.last_latency = result.latency_ms;
-        
+
         if self.latency_history.len() >= 100 {
             self.latency_history.pop_front();
             self.timestamp_history.pop_front();
@@ -64,13 +63,13 @@ impl SentinelState {
                 self.last_status = Some(code);
                 if code >= 400 {
                     // Consider 4xx/5xx as "failed" checks for health purposes?
-                     // Or maybe just 5xx? Let's say we mark non-2xx as interesting, 
-                     // but explicitly track network errors or 5xx as failures.
-                     if code >= 500 {
-                         self.failed_checks += 1;
-                     }
+                    // Or maybe just 5xx? Let's say we mark non-2xx as interesting,
+                    // but explicitly track network errors or 5xx as failures.
+                    if code >= 500 {
+                        self.failed_checks += 1;
+                    }
                 }
-                
+
                 if self.status_history.len() >= 100 {
                     self.status_history.pop_front();
                 }
@@ -94,7 +93,7 @@ impl SentinelState {
             .as_secs();
         let filename = format!("sentinel_log_{}.csv", timestamp);
         let mut content = String::from("index,timestamp,status,latency_ms\n");
-        
+
         let len = self.latency_history.len();
         for i in 0..len {
             let lat = self.latency_history.get(i).unwrap_or(&0);

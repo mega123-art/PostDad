@@ -1,14 +1,19 @@
 use crate::app::{App, InputMode, JsonEntry};
-use crate::ui_sentinel::render_sentinel_mode;
-use ratatui_image::StatefulImage;
-use similar::{ChangeTag, TextDiff};
+use crate::ui::sentinel::render_sentinel_mode;
+pub mod sentinel;
+pub mod syntax;
+
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Sparkline, Tabs, Wrap},
+    widgets::{
+        Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Sparkline, Tabs, Wrap,
+    },
 };
+use ratatui_image::StatefulImage;
+use similar::{ChangeTag, TextDiff};
 
 /// ASCII art logo for PostDad
 pub const LOGO: &str = r#"
@@ -85,7 +90,12 @@ fn get_style_for_value(v: &serde_json::Value) -> Style {
     }
 }
 
-fn flatten_tree(entries: &[JsonEntry], list_items: &mut Vec<ListItem<'static>>, filter: &str, line_counter: &mut usize) {
+fn flatten_tree(
+    entries: &[JsonEntry],
+    list_items: &mut Vec<ListItem<'static>>,
+    filter: &str,
+    line_counter: &mut usize,
+) {
     for entry in entries {
         let matches = if filter.is_empty() {
             true
@@ -109,7 +119,10 @@ fn flatten_tree(entries: &[JsonEntry], list_items: &mut Vec<ListItem<'static>>, 
                 v => format!("{}", v),
             };
 
-            let display_text = format!("{:>4} {}{} {}: {}", *line_counter, indent, icon, entry.key, val_str);
+            let display_text = format!(
+                "{:>4} {}{} {}: {}",
+                *line_counter, indent, icon, entry.key, val_str
+            );
             let style = get_style_for_value(&entry.value);
             list_items.push(ListItem::new(display_text).style(style));
         }
@@ -124,7 +137,7 @@ pub fn get_json_path(entries: &[JsonEntry], target_idx: usize, filter: &str) -> 
     let mut current_idx = 0;
     find_path_by_index(entries, target_idx, &mut current_idx, filter, String::new())
         .map(|path| format!("$.{}", path))
-        .unwrap_or_else(String::new)
+        .unwrap_or_default()
 }
 
 fn find_path_by_index(
@@ -132,7 +145,7 @@ fn find_path_by_index(
     target_idx: usize,
     current_idx: &mut usize,
     filter: &str,
-    parent_path: String
+    parent_path: String,
 ) -> Option<String> {
     for entry in entries {
         let matches = if filter.is_empty() {
@@ -146,9 +159,9 @@ fn find_path_by_index(
                 if parent_path.is_empty() {
                     return Some(entry.key.clone());
                 } else if entry.key.starts_with('[') {
-                     return Some(format!("{}{}", parent_path, entry.key));
+                    return Some(format!("{}{}", parent_path, entry.key));
                 } else {
-                     return Some(format!("{}.{}", parent_path, entry.key));
+                    return Some(format!("{}.{}", parent_path, entry.key));
                 }
             }
             *current_idx += 1;
@@ -158,12 +171,14 @@ fn find_path_by_index(
             let my_path = if parent_path.is_empty() {
                 entry.key.clone()
             } else if entry.key.starts_with('[') {
-                 format!("{}{}", parent_path, entry.key)
+                format!("{}{}", parent_path, entry.key)
             } else {
-                 format!("{}.{}", parent_path, entry.key)
+                format!("{}.{}", parent_path, entry.key)
             };
 
-            if let Some(p) = find_path_by_index(&entry.children, target_idx, current_idx, filter, my_path) {
+            if let Some(p) =
+                find_path_by_index(&entry.children, target_idx, current_idx, filter, my_path)
+            {
                 return Some(p);
             }
         }
@@ -211,13 +226,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
             .direction(Direction::Vertical)
             .constraints([Constraint::Min(10), Constraint::Length(1)])
             .split(f.area());
-        
+
         let main_area = main_with_status[0];
         let status_bar_area = main_with_status[1];
-        
+
         // Render status bar
         render_status_bar(f, app, status_bar_area);
-        
+
         let chunks = if app.zen_mode {
             Layout::default()
                 .direction(Direction::Horizontal)
@@ -232,7 +247,11 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
         if !app.zen_mode {
             let sidebar_constraints = if app.show_sidebar_filter {
-                vec![Constraint::Length(3), Constraint::Min(10), Constraint::Length(4)]
+                vec![
+                    Constraint::Length(3),
+                    Constraint::Min(10),
+                    Constraint::Length(4),
+                ]
             } else {
                 vec![Constraint::Min(10), Constraint::Length(4)]
             };
@@ -241,15 +260,19 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 .direction(Direction::Vertical)
                 .constraints(sidebar_constraints)
                 .split(chunks[0]);
-            
+
             let mut main_sidebar_area = sidebar_chunks[0];
-            
+
             // Render Search Bar if active
             if app.show_sidebar_filter {
                 main_sidebar_area = sidebar_chunks[1];
                 let search_text = format!(" 🔍 {}_", app.sidebar_filter);
-                let search_bar = Paragraph::new(search_text)
-                    .block(Block::default().borders(Borders::ALL).title(" Filter Collections ").border_style(Style::default().fg(app.theme.highlight)));
+                let search_bar = Paragraph::new(search_text).block(
+                    Block::default()
+                        .borders(Borders::ALL)
+                        .title(" Filter Collections ")
+                        .border_style(Style::default().fg(app.theme.highlight)),
+                );
                 f.render_widget(search_bar, sidebar_chunks[0]);
             }
 
@@ -270,17 +293,18 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 "--- Collections ---",
                 Style::default().add_modifier(Modifier::BOLD),
             )));
-            
+
             for col in &app.collections {
                 let mut keys: Vec<&String> = col.requests.keys().collect();
                 keys.sort();
-                
+
                 // Check visibility based on filter
                 let matches_collection = col.name.to_lowercase().contains(&filter_text);
-                let matching_requests: Vec<&&String> = keys.iter()
+                let matching_requests: Vec<&&String> = keys
+                    .iter()
                     .filter(|k| filter_text.is_empty() || k.to_lowercase().contains(&filter_text))
                     .collect();
-                
+
                 if !filter_text.is_empty() && !matches_collection && matching_requests.is_empty() {
                     continue;
                 }
@@ -357,10 +381,18 @@ pub fn render(f: &mut Frame, app: &mut App) {
                         Span::raw(&log.url),
                     ];
 
-                    if let Some(base_idx) = app.diff_base_index {
-                        if base_idx == i {
-                            spans.insert(0, Span::styled("[BASE] ", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD)));
-                        }
+                    if let Some(base_idx) = app.diff_base_index
+                        && base_idx == i
+                    {
+                        spans.insert(
+                            0,
+                            Span::styled(
+                                "[BASE] ",
+                                Style::default()
+                                    .fg(Color::Magenta)
+                                    .add_modifier(Modifier::BOLD),
+                            ),
+                        );
                     }
 
                     let content = Line::from(spans);
@@ -380,7 +412,9 @@ pub fn render(f: &mut Frame, app: &mut App) {
             );
 
             // Calculate response size for display
-            let response_size = app.active_tab().response_bytes
+            let response_size = app
+                .active_tab()
+                .response_bytes
                 .as_ref()
                 .map(|b| {
                     let bytes = b.len();
@@ -393,8 +427,10 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     }
                 })
                 .unwrap_or_else(|| "—".to_string());
-            
-            let latency_display = app.active_tab().latency
+
+            let latency_display = app
+                .active_tab()
+                .latency
                 .map(|ms| format!("{} ms", ms))
                 .unwrap_or_else(|| "—".to_string());
 
@@ -464,12 +500,12 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 .border_style(Style::default().fg(url_border_color)),
         );
 
-        let titles = vec!["Params", "Headers", "Body", "Auth", "Chain"]
+        let titles = ["Params", "Headers", "Body", "Auth", "Chain"]
             .iter()
             .cloned()
             .map(ratatui::text::Line::from)
             .collect::<Vec<_>>();
-        
+
         // Build breadcrumb trail
         let tab_names = ["Params", "Headers", "Body", "Auth", "Chain"];
         let current_tab = tab_names.get(app.active_tab().selected_tab).unwrap_or(&"");
@@ -479,20 +515,16 @@ pub fn render(f: &mut Frame, app: &mut App) {
             crate::app::BodyType::GraphQL => "GraphQL",
             crate::app::BodyType::Grpc => "gRPC",
         };
-        
+
         let breadcrumb = if app.active_tab().selected_tab == 2 {
             // Body tab - show body type
             format!(" 📍 HTTP › {} › {} ", current_tab, body_type_str)
         } else {
             format!(" 📍 HTTP › {} ", current_tab)
         };
-        
+
         let tabs = Tabs::new(titles)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title(breadcrumb),
-            )
+            .block(Block::default().borders(Borders::ALL).title(breadcrumb))
             .select(app.active_tab().selected_tab)
             .style(Style::default().fg(app.theme.accent))
             .highlight_style(
@@ -501,12 +533,20 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     .bg(app.theme.border),
             );
 
-        let req_titles = app.tabs.iter().map(|t| Line::from(t.name.clone())).collect::<Vec<_>>();
+        let req_titles = app
+            .tabs
+            .iter()
+            .map(|t| Line::from(t.name.clone()))
+            .collect::<Vec<_>>();
         let req_tabs_widget = Tabs::new(req_titles)
             .block(Block::default().borders(Borders::ALL).title(" Open Tabs "))
             .select(app.active_tab)
             .style(Style::default().fg(app.theme.text_secondary))
-            .highlight_style(Style::default().fg(app.theme.highlight).add_modifier(Modifier::BOLD));
+            .highlight_style(
+                Style::default()
+                    .fg(app.theme.highlight)
+                    .add_modifier(Modifier::BOLD),
+            );
 
         let main_constraints = if app.zen_mode {
             vec![
@@ -533,7 +573,17 @@ pub fn render(f: &mut Frame, app: &mut App) {
         f.render_widget(url_bar, right_col[1]);
 
         if app.active_tab().input_mode == InputMode::Editing {
-            let x = right_col[1].x + 1 + (app.active_tab().method.len() as u16 + 2) + 1 + app.active_tab().url.len() as u16;
+            let script_offset = if !app.active_tab().pre_request_script.trim().is_empty() {
+                3
+            } else {
+                0
+            };
+            let x = right_col[1].x
+                + 1
+                + (app.active_tab().method.len() as u16 + 2)
+                + script_offset
+                + 1
+                + app.active_tab().url_cursor_index as u16;
             let y = right_col[1].y + 1;
             f.set_cursor_position((x, y));
         }
@@ -595,10 +645,15 @@ pub fn render(f: &mut Frame, app: &mut App) {
                         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
                         .highlight_symbol("> ");
 
-                    f.render_stateful_widget(list, right_col[2], &mut app.active_tab_mut().params_list_state);
+                    f.render_stateful_widget(
+                        list,
+                        right_col[2],
+                        &mut app.active_tab_mut().params_list_state,
+                    );
                 }
                 1 => {
-                    let headers: Vec<ListItem> = app.active_tab()
+                    let headers: Vec<ListItem> = app
+                        .active_tab()
                         .request_headers
                         .iter()
                         .map(|(k, v)| ListItem::new(format!("{}: {}", k, v)))
@@ -627,10 +682,12 @@ pub fn render(f: &mut Frame, app: &mut App) {
                             } else {
                                 request_body
                             };
-                            
+
                             // Try to guess extension for highlighting based on content or headers
                             // For request body, we often default to JSON if it looks like it
-                            let ext = if body_txt.trim_start().starts_with('{') || body_txt.trim_start().starts_with('[') {
+                            let ext = if body_txt.trim_start().starts_with('{')
+                                || body_txt.trim_start().starts_with('[')
+                            {
                                 "json"
                             } else if body_txt.trim_start().starts_with('<') {
                                 "xml" // or html
@@ -638,7 +695,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                                 "txt"
                             };
 
-                            let highlighted = crate::syntax::highlight(&body_txt, ext);
+                            let highlighted = crate::ui::syntax::highlight(&body_txt, ext);
 
                             f.render_widget(
                                 Paragraph::new(highlighted)
@@ -654,7 +711,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
                                 let tab = app.active_tab();
                                 input_mode = tab.input_mode;
                                 if tab.form_data.is_empty() {
-                                    form_items.push(ListItem::new("No form data. Press 'a' to add."));
+                                    form_items
+                                        .push(ListItem::new("No form data. Press 'a' to add."));
                                 } else {
                                     for (i, (k, v, is_file)) in tab.form_data.iter().enumerate() {
                                         let content = if Some(i) == tab.form_list_state.selected() {
@@ -717,7 +775,11 @@ pub fn render(f: &mut Frame, app: &mut App) {
                                 )
                                 .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
                                 .highlight_symbol("> ");
-                            f.render_stateful_widget(list, right_col[3], &mut app.active_tab_mut().form_list_state);
+                            f.render_stateful_widget(
+                                list,
+                                right_col[3],
+                                &mut app.active_tab_mut().form_list_state,
+                            );
                         }
                         crate::app::BodyType::GraphQL => {
                             f.render_widget(config_block.clone().title(main_title), right_col[3]);
@@ -756,7 +818,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                             } else {
                                 graphql_variables
                             };
-                            let highlighted_vars = crate::syntax::highlight(&vars_txt, "json");
+                            let highlighted_vars = crate::ui::syntax::highlight(&vars_txt, "json");
                             f.render_widget(
                                 Paragraph::new(highlighted_vars)
                                     .block(
@@ -769,33 +831,48 @@ pub fn render(f: &mut Frame, app: &mut App) {
                             );
                         }
                         crate::app::BodyType::Grpc => {
-                             f.render_widget(config_block.clone().title(main_title), right_col[2]);
-                             let inner = config_block.inner(right_col[2]);
-                             let chunks = Layout::default()
+                            f.render_widget(config_block.clone().title(main_title), right_col[2]);
+                            let inner = config_block.inner(right_col[2]);
+                            let chunks = Layout::default()
                                 .direction(Direction::Vertical)
                                 .constraints([
                                     Constraint::Length(3), // Service/Method
                                     Constraint::Length(3), // Proto Path
-                                    Constraint::Min(0)     // Payload
+                                    Constraint::Min(0),    // Payload
                                 ])
                                 .split(inner);
-                            
+
                             let tab = app.active_tab();
-                            let service_txt = format!("Service/Method: {} (Press 'u' to edit)", 
-                                if tab.grpc_service.is_empty() { "None" } else { &tab.grpc_service });
-                            
+                            let service_txt = format!(
+                                "Service/Method: {} (Press 'u' to edit)",
+                                if tab.grpc_service.is_empty() {
+                                    "None"
+                                } else {
+                                    &tab.grpc_service
+                                }
+                            );
+
                             f.render_widget(Paragraph::new(service_txt), chunks[0]);
 
-                             let proto_txt = format!("Proto Path: {} (Press 'p' to edit)", 
-                                if tab.grpc_proto_path.is_empty() { "None" } else { &tab.grpc_proto_path });
-                             f.render_widget(Paragraph::new(proto_txt), chunks[1]);
-                             
-                             let body_txt = if tab.request_body.is_empty() {
-                                 "No Payload. Press 'b' to edit (JSON format).".to_string()
-                             } else {
-                                 tab.request_body.clone()
-                             };
-                             f.render_widget(Paragraph::new(body_txt).wrap(Wrap { trim: true }), chunks[2]);
+                            let proto_txt = format!(
+                                "Proto Path: {} (Press 'p' to edit)",
+                                if tab.grpc_proto_path.is_empty() {
+                                    "None"
+                                } else {
+                                    &tab.grpc_proto_path
+                                }
+                            );
+                            f.render_widget(Paragraph::new(proto_txt), chunks[1]);
+
+                            let body_txt = if tab.request_body.is_empty() {
+                                "No Payload. Press 'b' to edit (JSON format).".to_string()
+                            } else {
+                                tab.request_body.clone()
+                            };
+                            f.render_widget(
+                                Paragraph::new(body_txt).wrap(Wrap { trim: true }),
+                                chunks[2],
+                            );
                         }
                     }
                 }
@@ -854,9 +931,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
                         crate::app::AuthType::Basic => {
                             let (input_mode, basic_auth_user, basic_auth_pass) = {
                                 let tab = app.active_tab();
-                                (tab.input_mode, tab.basic_auth_user.clone(), tab.basic_auth_pass.clone())
+                                (
+                                    tab.input_mode,
+                                    tab.basic_auth_user.clone(),
+                                    tab.basic_auth_pass.clone(),
+                                )
                             };
-                            
+
                             let user_style = if input_mode == InputMode::EditingBasicAuthUser {
                                 Style::default().fg(Color::Yellow)
                             } else {
@@ -889,7 +970,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
                         crate::app::AuthType::OAuth2 => {
                             let (input_mode, client_id, auth_url, token_url, auth_token) = {
                                 let tab = app.active_tab();
-                                (tab.input_mode, tab.oauth_client_id.clone(), tab.oauth_auth_url.clone(), tab.oauth_token_url.clone(), tab.auth_token.clone())
+                                (
+                                    tab.input_mode,
+                                    tab.oauth_client_id.clone(),
+                                    tab.oauth_auth_url.clone(),
+                                    tab.oauth_token_url.clone(),
+                                    tab.auth_token.clone(),
+                                )
                             };
 
                             let id_style = if input_mode == InputMode::EditingOAuthClientId {
@@ -909,10 +996,8 @@ pub fn render(f: &mut Frame, app: &mut App) {
                             };
 
                             let content = vec![
-                                ListItem::new(format!("Client ID: {}", client_id))
-                                    .style(id_style),
-                                ListItem::new(format!("Auth URL: {}", auth_url))
-                                    .style(url1_style),
+                                ListItem::new(format!("Client ID: {}", client_id)).style(id_style),
+                                ListItem::new(format!("Auth URL: {}", auth_url)).style(url1_style),
                                 ListItem::new(format!("Token URL: {}", token_url))
                                     .style(url2_style),
                                 ListItem::new(Line::from(vec![
@@ -948,13 +1033,18 @@ pub fn render(f: &mut Frame, app: &mut App) {
                         let tab = app.active_tab();
                         input_mode = tab.input_mode;
                         if tab.extract_rules.is_empty() {
-                            extract_items.push(ListItem::new("No chaining rules. Press 'a' to add."));
+                            extract_items
+                                .push(ListItem::new("No chaining rules. Press 'a' to add."));
                         } else {
                             for (i, (key, path)) in tab.extract_rules.iter().enumerate() {
                                 let content = if Some(i) == tab.extract_list_state.selected() {
                                     match tab.input_mode {
-                                        InputMode::EditingChainKey => format!("{} _ <- {}", key, path),
-                                        InputMode::EditingChainPath => format!("{} <- {} _", key, path),
+                                        InputMode::EditingChainKey => {
+                                            format!("{} _ <- {}", key, path)
+                                        }
+                                        InputMode::EditingChainPath => {
+                                            format!("{} <- {} _", key, path)
+                                        }
                                         _ => format!("{} <- {}", key, path),
                                     }
                                 } else {
@@ -966,7 +1056,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     }
 
                     let title = match input_mode {
-                         InputMode::EditingChainKey | InputMode::EditingChainPath => {
+                        InputMode::EditingChainKey | InputMode::EditingChainPath => {
                             " Post-Request Variables (Editing...) "
                         }
                         _ => {
@@ -975,7 +1065,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     };
 
                     let style = match input_mode {
-                         InputMode::EditingChainKey | InputMode::EditingChainPath => {
+                        InputMode::EditingChainKey | InputMode::EditingChainPath => {
                             Style::default().fg(app.theme.border_focus)
                         }
                         _ => Style::default().fg(app.theme.border),
@@ -991,7 +1081,11 @@ pub fn render(f: &mut Frame, app: &mut App) {
                         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
                         .highlight_symbol("> ");
 
-                    f.render_stateful_widget(list, right_col[3], &mut app.active_tab_mut().extract_list_state);
+                    f.render_stateful_widget(
+                        list,
+                        right_col[3],
+                        &mut app.active_tab_mut().extract_list_state,
+                    );
                 }
                 _ => {}
             };
@@ -1049,7 +1143,11 @@ pub fn render(f: &mut Frame, app: &mut App) {
         // Split for Test Results/Console if present
         let (has_tests, has_output, fullscreen) = {
             let tab = app.active_tab();
-            (!tab.test_results.is_empty(), !tab.script_output.is_empty(), tab.fullscreen_response)
+            (
+                !tab.test_results.is_empty(),
+                !tab.script_output.is_empty(),
+                tab.fullscreen_response,
+            )
         };
 
         if has_tests || has_output {
@@ -1061,7 +1159,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
             let chunks = ratatui::layout::Layout::default()
                 .direction(ratatui::layout::Direction::Vertical)
-                .constraints(&[size, ratatui::layout::Constraint::Min(0)])
+                .constraints([size, ratatui::layout::Constraint::Min(0)])
                 .split(area);
 
             let test_area = chunks[0];
@@ -1132,7 +1230,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
 
         let (is_loading, status_code, latency, search_query, input_mode) = {
             let tab = app.active_tab();
-            (tab.is_loading, tab.status_code, tab.latency, tab.search_query.clone(), tab.input_mode)
+            (
+                tab.is_loading,
+                tab.status_code,
+                tab.latency,
+                tab.search_query.clone(),
+                tab.input_mode,
+            )
         };
 
         let status_bar_text = if is_loading {
@@ -1141,9 +1245,9 @@ pub fn render(f: &mut Frame, app: &mut App) {
         } else {
             match (status_code, latency) {
                 (Some(code), Some(ms)) => {
-                    let status_emoji = if code >= 200 && code < 300 {
+                    let status_emoji = if (200..300).contains(&code) {
                         "✓"
-                    } else if code >= 400 && code < 500 {
+                    } else if (400..500).contains(&code) {
                         "⚠"
                     } else if code >= 500 {
                         "✗"
@@ -1162,7 +1266,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                     s
                 }
                 (Some(code), None) => {
-                    let status_emoji = if code >= 200 && code < 300 {
+                    let status_emoji = if (200..300).contains(&code) {
                         "✓"
                     } else if code >= 400 {
                         "✗"
@@ -1176,7 +1280,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         };
 
         let status_style = if let Some(code) = status_code {
-            if code >= 200 && code < 300 {
+            if (200..300).contains(&code) {
                 Style::default().fg(app.theme.success)
             } else if code >= 400 {
                 Style::default().fg(app.theme.error)
@@ -1202,25 +1306,25 @@ pub fn render(f: &mut Frame, app: &mut App) {
             let mut items = Vec::new();
             let mut json_path = String::new();
             {
-               let tab = app.active_tab();
-               if let Some(tree) = &tab.response_json {
-                   let mut counter = 0;
-                   flatten_tree(tree, &mut items, &tab.search_query, &mut counter);
-                   
-                   // Get JSON path for selected item
-                   if let Some(selected_idx) = tab.json_list_state.selected() {
-                       json_path = get_json_path(tree, selected_idx, &tab.search_query);
-                   }
-               }
+                let tab = app.active_tab();
+                if let Some(tree) = &tab.response_json {
+                    let mut counter = 0;
+                    flatten_tree(tree, &mut items, &tab.search_query, &mut counter);
+
+                    // Get JSON path for selected item
+                    if let Some(selected_idx) = tab.json_list_state.selected() {
+                        json_path = get_json_path(tree, selected_idx, &tab.search_query);
+                    }
+                }
             }
-            
+
             // Build title with JSON path
             let title_with_path = if json_path.is_empty() {
                 block_title
             } else {
                 format!("{} │ 📍 {}", block_title, json_path)
             };
-            
+
             let list = List::new(items)
                 .block(
                     Block::default()
@@ -1231,39 +1335,58 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
                 .highlight_symbol(">> ");
             f.render_stateful_widget(list, main_area, &mut app.active_tab_mut().json_list_state);
-
         } else if app.active_tab().response_is_binary {
-             let img_opt = app.active_tab().response_image.clone();
-             
-             if let Some(img) = img_opt {
-                  if let Some(picker) = &mut app.image_picker {
-                       let mut protocol = picker.new_resize_protocol(img);
-                       let widget = StatefulImage::new();
-                       f.render_stateful_widget(widget, main_area, &mut protocol);
-                       return;
-                  }
-             }
+            let img_opt = app.active_tab().response_image.clone();
 
-             let size = app.active_tab().response_bytes.as_ref().map(|b| b.len()).unwrap_or(0);
-             let content = vec![
-                 Line::from(vec![
-                     Span::styled("📦 Binary Content Detected ", Style::default().add_modifier(Modifier::BOLD).fg(Color::Yellow)),
-                     Span::raw(format!("({} bytes)", size)),
-                 ]),
-                 Line::from(""),
-                 Line::from(vec![
-                     Span::raw("Press "),
-                     Span::styled("Shift+D", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-                     Span::raw(" to Download"),
-                 ]),
-                 Line::from(vec![
-                     Span::raw("Press "),
-                     Span::styled("Shift+P", Style::default().add_modifier(Modifier::BOLD).fg(Color::Cyan)),
-                     Span::raw(" to Preview (Open in Default Viewer)"),
-                 ]),
-             ];
+            if let Some(img) = img_opt
+                && let Some(picker) = &mut app.image_picker
+            {
+                let mut protocol = picker.new_resize_protocol(img);
+                let widget = StatefulImage::new();
+                f.render_stateful_widget(widget, main_area, &mut protocol);
+                return;
+            }
 
-             let para = Paragraph::new(content)
+            let size = app
+                .active_tab()
+                .response_bytes
+                .as_ref()
+                .map(|b| b.len())
+                .unwrap_or(0);
+            let content = vec![
+                Line::from(vec![
+                    Span::styled(
+                        "📦 Binary Content Detected ",
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(Color::Yellow),
+                    ),
+                    Span::raw(format!("({} bytes)", size)),
+                ]),
+                Line::from(""),
+                Line::from(vec![
+                    Span::raw("Press "),
+                    Span::styled(
+                        "Shift+D",
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(Color::Cyan),
+                    ),
+                    Span::raw(" to Download"),
+                ]),
+                Line::from(vec![
+                    Span::raw("Press "),
+                    Span::styled(
+                        "Shift+P",
+                        Style::default()
+                            .add_modifier(Modifier::BOLD)
+                            .fg(Color::Cyan),
+                    ),
+                    Span::raw(" to Preview (Open in Default Viewer)"),
+                ]),
+            ];
+
+            let para = Paragraph::new(content)
                 .block(
                     Block::default()
                         .title(block_title)
@@ -1273,17 +1396,17 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 .alignment(ratatui::layout::Alignment::Center)
                 .wrap(Wrap { trim: false });
             f.render_widget(para, main_area);
-
         } else {
-            let content = app.active_tab()
+            let content = app
+                .active_tab()
                 .response
                 .as_deref()
                 .unwrap_or("No data yet. Press Enter to send request.")
                 .to_string(); // clone string to simplify lifetime
-            
+
             // Highlight response
             let ext = app.guess_extension().unwrap_or("txt".to_string());
-            let highlighted = crate::syntax::highlight(&content, &ext);
+            let highlighted = crate::ui::syntax::highlight(&content, &ext);
 
             let scroll = app.active_tab().response_scroll;
 
@@ -1477,7 +1600,7 @@ fn render_runner_mode(f: &mut Frame, app: &mut App) {
         result_items.push(ListItem::new("─".repeat(50)));
 
         // Individual results
-        for (_i, run) in result.results.iter().enumerate() {
+        for run in result.results.iter() {
             let status_icon = if run.passed {
                 Span::styled(
                     "✓ ",
@@ -1777,7 +1900,8 @@ fn render_websocket_mode(f: &mut Frame, app: &mut App) {
     }
 
     // Messages area
-    let msg_items: Vec<ListItem> = app.active_tab()
+    let msg_items: Vec<ListItem> = app
+        .active_tab()
         .ws_messages
         .iter()
         .map(|msg| {
@@ -1821,26 +1945,23 @@ fn render_websocket_mode(f: &mut Frame, app: &mut App) {
     let mut ws_list_state = ratatui::widgets::ListState::default();
     let ws_scroll = app.active_tab().ws_scroll;
     if msg_count > 0 {
-        ws_list_state.select(Some(
-            ws_scroll.min(msg_count.saturating_sub(1)),
-        ));
+        ws_list_state.select(Some(ws_scroll.min(msg_count.saturating_sub(1))));
     }
     f.render_stateful_widget(messages_list, chunks[1], &mut ws_list_state);
 
     // Input field
     let ws_message_input = app.active_tab().ws_message_input.clone();
-    
+
     let input_border_color = match input_mode {
         InputMode::EditingWsMessage => Color::Yellow,
         _ => Color::Blue,
     };
 
-    let input_text =
-        if ws_message_input.is_empty() && input_mode != InputMode::EditingWsMessage {
-            "Press 'i' to type a message..."
-        } else {
-            &ws_message_input
-        };
+    let input_text = if ws_message_input.is_empty() && input_mode != InputMode::EditingWsMessage {
+        "Press 'i' to type a message..."
+    } else {
+        &ws_message_input
+    };
 
     let input_title = if ws_connected {
         if input_mode == InputMode::EditingWsMessage {
@@ -1943,81 +2064,81 @@ fn centered_rect(
 }
 
 pub fn render_diff_view(f: &mut Frame, app: &mut App) {
-    if let (Some(base_idx), Some(target_idx)) = (app.diff_base_index, app.diff_target_index) {
-        if let (Some(base), Some(target)) = (
+    if let (Some(base_idx), Some(target_idx)) = (app.diff_base_index, app.diff_target_index)
+        && let (Some(base), Some(target)) = (
             app.request_history.get(base_idx),
             app.request_history.get(target_idx),
-        ) {
-            let area = f.area();
-            let chunks = Layout::default()
-                .direction(Direction::Vertical)
-                .constraints([Constraint::Length(3), Constraint::Min(0)])
-                .split(area);
+        )
+    {
+        let area = f.area();
+        let chunks = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(3), Constraint::Min(0)])
+            .split(area);
 
-            // Title
-            let title = format!(
-                " Diff: Base ({}) vs Target ({}) - Press 'Esc' to close ",
-                base.url, target.url
-            );
-            let block = Block::default().borders(Borders::ALL).title(title);
-            f.render_widget(block, area);
+        // Title
+        let title = format!(
+            " Diff: Base ({}) vs Target ({}) - Press 'Esc' to close ",
+            base.url, target.url
+        );
+        let block = Block::default().borders(Borders::ALL).title(title);
+        f.render_widget(block, area);
 
-            // Inner chunks for diff content
-            let content_area = chunks[1];
-            let diff_chunks = Layout::default()
-                .direction(Direction::Horizontal)
-                .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
-                .split(content_area);
+        // Inner chunks for diff content
+        let content_area = chunks[1];
+        let diff_chunks = Layout::default()
+            .direction(Direction::Horizontal)
+            .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
+            .split(content_area);
 
-            let old_text = base.body.as_deref().unwrap_or("");
-            let new_text = target.body.as_deref().unwrap_or("");
+        let old_text = base.body.as_deref().unwrap_or("");
+        let new_text = target.body.as_deref().unwrap_or("");
 
-            let diff = TextDiff::from_lines(old_text, new_text);
+        let diff = TextDiff::from_lines(old_text, new_text);
 
-            let mut left_lines = Vec::new();
-            let mut right_lines = Vec::new();
+        let mut left_lines = Vec::new();
+        let mut right_lines = Vec::new();
 
-            for change in diff.iter_all_changes() {
-                match change.tag() {
-                    ChangeTag::Delete => {
-                        left_lines.push(ListItem::new(Line::from(Span::styled(
-                            format!("- {}", change),
-                            Style::default().bg(Color::Red).fg(Color::Black),
-                        ))));
-                        right_lines.push(ListItem::new(Line::from("")));
-                    }
-                    ChangeTag::Insert => {
-                        left_lines.push(ListItem::new(Line::from("")));
-                        right_lines.push(ListItem::new(Line::from(Span::styled(
-                            format!("+ {}", change),
-                            Style::default().bg(Color::Green).fg(Color::Black),
-                        ))));
-                    }
-                    ChangeTag::Equal => {
-                        left_lines.push(ListItem::new(Line::from(format!("  {}", change))));
-                        right_lines.push(ListItem::new(Line::from(format!("  {}", change))));
-                    }
+        for change in diff.iter_all_changes() {
+            match change.tag() {
+                ChangeTag::Delete => {
+                    left_lines.push(ListItem::new(Line::from(Span::styled(
+                        format!("- {}", change),
+                        Style::default().bg(Color::Red).fg(Color::Black),
+                    ))));
+                    right_lines.push(ListItem::new(Line::from("")));
+                }
+                ChangeTag::Insert => {
+                    left_lines.push(ListItem::new(Line::from("")));
+                    right_lines.push(ListItem::new(Line::from(Span::styled(
+                        format!("+ {}", change),
+                        Style::default().bg(Color::Green).fg(Color::Black),
+                    ))));
+                }
+                ChangeTag::Equal => {
+                    left_lines.push(ListItem::new(Line::from(format!("  {}", change))));
+                    right_lines.push(ListItem::new(Line::from(format!("  {}", change))));
                 }
             }
-
-            // Render left
-            // Render left
-            f.render_stateful_widget(
-                List::new(left_lines)
-                    .block(Block::default().borders(Borders::RIGHT).title(" Base "))
-                    .highlight_style(Style::default().add_modifier(Modifier::REVERSED)),
-                diff_chunks[0],
-                &mut app.diff_list_state,
-            );
-            // Render right
-            f.render_stateful_widget(
-                List::new(right_lines)
-                    .block(Block::default().title(" Target "))
-                    .highlight_style(Style::default().add_modifier(Modifier::REVERSED)),
-                diff_chunks[1],
-                &mut app.diff_list_state,
-            );
         }
+
+        // Render left
+        // Render left
+        f.render_stateful_widget(
+            List::new(left_lines)
+                .block(Block::default().borders(Borders::RIGHT).title(" Base "))
+                .highlight_style(Style::default().add_modifier(Modifier::REVERSED)),
+            diff_chunks[0],
+            &mut app.diff_list_state,
+        );
+        // Render right
+        f.render_stateful_widget(
+            List::new(right_lines)
+                .block(Block::default().title(" Target "))
+                .highlight_style(Style::default().add_modifier(Modifier::REVERSED)),
+            diff_chunks[1],
+            &mut app.diff_list_state,
+        );
     }
 }
 
@@ -2034,19 +2155,28 @@ pub fn render_mock_mode(f: &mut Frame, app: &mut App) {
 
     // Title
     let status_text = if app.mock_server_running {
-        Span::styled(" RUNNING ", Style::default().bg(Color::Green).fg(Color::Black))
+        Span::styled(
+            " RUNNING ",
+            Style::default().bg(Color::Green).fg(Color::Black),
+        )
     } else {
-        Span::styled(" STOPPED ", Style::default().bg(Color::Red).fg(Color::Black))
+        Span::styled(
+            " STOPPED ",
+            Style::default().bg(Color::Red).fg(Color::Black),
+        )
     };
-    
+
     let port_text = Span::raw(format!(" on port {} ", app.mock_server_port));
-    
+
     let title = Line::from(vec![
-        Span::styled(" Mock Server Manager ", Style::default().add_modifier(Modifier::BOLD)),
+        Span::styled(
+            " Mock Server Manager ",
+            Style::default().add_modifier(Modifier::BOLD),
+        ),
         status_text,
         port_text,
     ]);
-    
+
     let block = Block::default().borders(Borders::ALL).title(title);
     f.render_widget(block, chunks[0]);
 
@@ -2057,19 +2187,23 @@ pub fn render_mock_mode(f: &mut Frame, app: &mut App) {
         .split(chunks[1]);
 
     // Sidebar List
-    let items: Vec<ListItem> = app.mock_routes.iter().map(|r| {
-        ListItem::new(format!("{} {}", r.method, r.path))
-            .style(Style::default().fg(Color::Cyan))
-    }).collect();
+    let items: Vec<ListItem> = app
+        .mock_routes
+        .iter()
+        .map(|r| {
+            ListItem::new(format!("{} {}", r.method, r.path))
+                .style(Style::default().fg(Color::Cyan))
+        })
+        .collect();
 
     let list = List::new(items)
         .block(Block::default().borders(Borders::RIGHT).title(" Routes "))
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
-    
+
     f.render_stateful_widget(list, content_chunks[0], &mut app.mock_list_state);
 
     // Details
-     if let Some(selected) = app.mock_list_state.selected() {
+    if let Some(selected) = app.mock_list_state.selected() {
         if let Some(route) = app.mock_routes.get(selected) {
             let details = vec![
                 Line::from(vec![
@@ -2087,7 +2221,7 @@ pub fn render_mock_mode(f: &mut Frame, app: &mut App) {
                 Line::from(""),
                 Line::from(Span::styled("Headers:", Style::default().fg(Color::Yellow))),
             ];
-            
+
             let mut details_list = details;
             if route.headers.is_empty() {
                 details_list.push(Line::from("  (None)"));
@@ -2098,23 +2232,28 @@ pub fn render_mock_mode(f: &mut Frame, app: &mut App) {
             }
 
             details_list.push(Line::from(""));
-            details_list.push(Line::from(Span::styled("Body:", Style::default().fg(Color::Yellow))));
-            
+            details_list.push(Line::from(Span::styled(
+                "Body:",
+                Style::default().fg(Color::Yellow),
+            )));
+
             // Add body lines
             for line in route.body.lines() {
                 details_list.push(Line::from(line));
             }
 
-             let details_block = Block::default()
+            let details_block = Block::default()
                 .borders(Borders::NONE)
                 .title(" Route Details ");
-            
-             // Use Paragraph for details
-             let p = Paragraph::new(details_list).block(details_block).wrap(Wrap { trim: false });
-             f.render_widget(p, content_chunks[1]);
+
+            // Use Paragraph for details
+            let p = Paragraph::new(details_list)
+                .block(details_block)
+                .wrap(Wrap { trim: false });
+            f.render_widget(p, content_chunks[1]);
         }
     } else {
-         f.render_widget(
+        f.render_widget(
             Paragraph::new("Select a route to view details").alignment(Alignment::Center),
             content_chunks[1],
         );
@@ -2129,7 +2268,7 @@ pub fn render_mock_mode(f: &mut Frame, app: &mut App) {
 fn render_schema_modal(f: &mut Frame, app: &mut App) {
     let area = centered_rect(50, 60, f.area());
     f.render_widget(ratatui::widgets::Clear, area);
-    
+
     let block = Block::default()
         .title(" GraphQL Schema Types ")
         .borders(Borders::ALL)
@@ -2139,23 +2278,27 @@ fn render_schema_modal(f: &mut Frame, app: &mut App) {
 
     let inner_area = block.inner(area);
 
-    let types: Vec<ListItem> = app.active_tab().graphql_schema_types.iter().map(|t| {
-        ListItem::new(Line::from(vec![
-            Span::raw("- "),
-            Span::styled(t, Style::default().fg(app.theme.highlight)),
-        ]))
-    }).collect();
+    let types: Vec<ListItem> = app
+        .active_tab()
+        .graphql_schema_types
+        .iter()
+        .map(|t| {
+            ListItem::new(Line::from(vec![
+                Span::raw("- "),
+                Span::styled(t, Style::default().fg(app.theme.highlight)),
+            ]))
+        })
+        .collect();
 
-    let list = List::new(types)
-        .block(Block::default().borders(Borders::NONE));
-    
+    let list = List::new(types).block(Block::default().borders(Borders::NONE));
+
     f.render_widget(list, inner_area);
 }
 
 fn render_grpc_services_modal(f: &mut Frame, app: &mut App) {
     let area = centered_rect(60, 70, f.area());
     f.render_widget(ratatui::widgets::Clear, area);
-    
+
     let block = Block::default()
         .title(" gRPC Services (via Reflection) ")
         .title_bottom(" j/k: Navigate | Enter: Select | Esc: Close ")
@@ -2167,32 +2310,38 @@ fn render_grpc_services_modal(f: &mut Frame, app: &mut App) {
 
     let inner_area = block.inner(area);
 
-    let services: Vec<ListItem> = app.active_tab().grpc_services.iter().enumerate().map(|(i, s)| {
-        let style = if Some(i) == app.active_tab().form_list_state.selected() {
-            Style::default().fg(app.theme.highlight).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(app.theme.text_primary)
-        };
-        ListItem::new(Line::from(vec![
-            Span::styled(format!("  {} ", s), style),
-        ]))
-    }).collect();
+    let services: Vec<ListItem> = app
+        .active_tab()
+        .grpc_services
+        .iter()
+        .enumerate()
+        .map(|(i, s)| {
+            let style = if Some(i) == app.active_tab().form_list_state.selected() {
+                Style::default()
+                    .fg(app.theme.highlight)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(app.theme.text_primary)
+            };
+            ListItem::new(Line::from(vec![Span::styled(format!("  {} ", s), style)]))
+        })
+        .collect();
 
     let list = List::new(services)
         .block(Block::default().borders(Borders::NONE))
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .highlight_symbol("> ");
-    
+
     f.render_stateful_widget(list, inner_area, &mut app.active_tab_mut().form_list_state);
 }
 
 fn render_grpc_description_modal(f: &mut Frame, app: &mut App) {
     let area = centered_rect(70, 80, f.area());
     f.render_widget(ratatui::widgets::Clear, area);
-    
+
     let service_name = app.active_tab().grpc_service_to_describe.clone();
     let title = format!(" gRPC Service: {} ", service_name);
-    
+
     let block = Block::default()
         .title(title)
         .title_bottom(" Esc: Close | b: Back to Services ")
@@ -2205,14 +2354,14 @@ fn render_grpc_description_modal(f: &mut Frame, app: &mut App) {
     let inner_area = block.inner(area);
 
     let desc = app.active_tab().grpc_service_description.clone();
-    
+
     // Syntax highlight the proto description
-    let highlighted = crate::syntax::highlight(&desc, "protobuf");
-    
+    let highlighted = crate::ui::syntax::highlight(&desc, "protobuf");
+
     let paragraph = Paragraph::new(highlighted)
         .wrap(Wrap { trim: false })
         .scroll((0, 0));
-    
+
     f.render_widget(paragraph, inner_area);
 }
 
@@ -2220,29 +2369,41 @@ fn render_status_bar(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
     let tab = app.active_tab();
 
     if tab.input_mode == InputMode::Command {
-         let text = format!(":{}█", app.command_input); // Add cursor block
-         let p = Paragraph::new(text).style(Style::default().bg(app.theme.background).fg(app.theme.text_primary));
-         f.render_widget(p, area);
-         return;
+        let text = format!(":{}█", app.command_input); // Add cursor block
+        let p = Paragraph::new(text).style(
+            Style::default()
+                .bg(app.theme.background)
+                .fg(app.theme.text_primary),
+        );
+        f.render_widget(p, area);
+        return;
     }
-    
+
     // Current mode indicator
     let mode = match tab.input_mode {
         InputMode::Normal => "NORMAL",
         InputMode::Editing => "EDIT:URL",
         InputMode::Search => "SEARCH",
-        InputMode::EditingAuth | InputMode::EditingBasicAuthUser | InputMode::EditingBasicAuthPass => "EDIT:AUTH",
+        InputMode::EditingAuth
+        | InputMode::EditingBasicAuthUser
+        | InputMode::EditingBasicAuthPass => "EDIT:AUTH",
         InputMode::EditingGrpcService => "EDIT:gRPC",
         InputMode::EditingGrpcProto => "EDIT:PROTO",
         InputMode::EditingWsUrl | InputMode::EditingWsMessage => "EDIT:WS",
         _ => "EDIT",
     };
-    
+
     let mode_style = match tab.input_mode {
-        InputMode::Normal => Style::default().bg(Color::Blue).fg(Color::White).add_modifier(Modifier::BOLD),
-        _ => Style::default().bg(Color::Yellow).fg(Color::Black).add_modifier(Modifier::BOLD),
+        InputMode::Normal => Style::default()
+            .bg(Color::Blue)
+            .fg(Color::White)
+            .add_modifier(Modifier::BOLD),
+        _ => Style::default()
+            .bg(Color::Yellow)
+            .fg(Color::Black)
+            .add_modifier(Modifier::BOLD),
     };
-    
+
     // Body type indicator
     let body_type = match tab.body_type {
         crate::app::BodyType::Raw => "RAW",
@@ -2250,14 +2411,18 @@ fn render_status_bar(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         crate::app::BodyType::GraphQL => "GQL",
         crate::app::BodyType::Grpc => "gRPC",
     };
-    
+
     // Connection status for WebSocket
     let ws_status = if tab.app_mode == crate::app::AppMode::WebSocket {
-        if tab.ws_connected { " 🟢 WS " } else { " 🔴 WS " }
+        if tab.ws_connected {
+            " 🟢 WS "
+        } else {
+            " 🔴 WS "
+        }
     } else {
         ""
     };
-    
+
     // Build status line
     let left_side = vec![
         Span::styled(format!(" {} ", mode), mode_style),
@@ -2273,80 +2438,93 @@ fn render_status_bar(f: &mut Frame, app: &App, area: ratatui::layout::Rect) {
         ),
         Span::raw(ws_status),
     ];
-    
+
     // Keybind hints on right side
     let hints = " ?:Help │ e:URL │ Tab:Sections │ Enter:Send │ q:Quit ";
-    
+
     let right_side = Span::styled(hints, Style::default().fg(app.theme.text_secondary));
-    
+
     // Calculate padding
     let left_len: usize = left_side.iter().map(|s| s.content.len()).sum();
     let right_len = hints.len();
     let padding = area.width.saturating_sub((left_len + right_len) as u16);
-    
+
     let mut spans = left_side;
     spans.push(Span::raw(" ".repeat(padding as usize)));
     spans.push(right_side);
-    
-    let status_line = Paragraph::new(Line::from(spans))
-        .style(Style::default().bg(app.theme.background));
-    
+
+    let status_line =
+        Paragraph::new(Line::from(spans)).style(Style::default().bg(app.theme.background));
+
     f.render_widget(status_line, area);
 }
 
 fn render_command_palette(f: &mut Frame, app: &mut App) {
     use crate::app::get_available_commands;
-    
+
     let area = centered_rect(60, 50, f.area());
     f.render_widget(ratatui::widgets::Clear, area);
-    
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Min(0)])
         .split(area);
-        
-    let search_bar = Paragraph::new(app.command_query.clone())
-        .block(Block::default().borders(Borders::ALL).title(" Command Palette ").border_style(Style::default().fg(app.theme.highlight)));
+
+    let search_bar = Paragraph::new(app.command_query.clone()).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title(" Command Palette ")
+            .border_style(Style::default().fg(app.theme.highlight)),
+    );
     f.render_widget(search_bar, chunks[0]);
-    
+
     // Filter commands
     let commands = get_available_commands();
     let filter = app.command_query.to_lowercase();
-    let filtered: Vec<&crate::app::CommandAction> = commands.iter()
-        .filter(|c| c.name.to_lowercase().contains(&filter) || c.desc.to_lowercase().contains(&filter))
+    let filtered: Vec<&crate::app::CommandAction> = commands
+        .iter()
+        .filter(|c| {
+            c.name.to_lowercase().contains(&filter) || c.desc.to_lowercase().contains(&filter)
+        })
         .collect();
-        
-    let items: Vec<ListItem> = filtered.iter().map(|c| {
-        let content = Line::from(vec![
-            Span::styled(format!("{:<20}", c.name), Style::default().add_modifier(Modifier::BOLD)),
-            Span::raw(c.desc),
-        ]);
-        ListItem::new(content)
-    }).collect();
-    
+
+    let items: Vec<ListItem> = filtered
+        .iter()
+        .map(|c| {
+            let content = Line::from(vec![
+                Span::styled(
+                    format!("{:<20}", c.name),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+                Span::raw(c.desc),
+            ]);
+            ListItem::new(content)
+        })
+        .collect();
+
     let list = List::new(items)
         .block(Block::default().borders(Borders::ALL))
         .highlight_style(Style::default().bg(app.theme.highlight).fg(Color::Black))
         .highlight_symbol("> ");
-        
+
     let mut state = ListState::default();
     if app.command_index >= filtered.len() && !filtered.is_empty() {
         app.command_index = filtered.len() - 1;
     }
     state.select(Some(app.command_index));
-    
+
     f.render_stateful_widget(list, chunks[1], &mut state);
 }
 
 fn render_stress_modal(f: &mut Frame, app: &mut App) {
     let area = centered_rect(50, 40, f.area());
     f.render_widget(ratatui::widgets::Clear, area);
-    
+
     let block = Block::default()
         .title(" Stress Test Configuration ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(app.theme.highlight));
-        
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
@@ -2354,12 +2532,12 @@ fn render_stress_modal(f: &mut Frame, app: &mut App) {
             Constraint::Length(3), // VUs
             Constraint::Length(3), // Duration
             Constraint::Length(1), // Spacer
-            Constraint::Min(0)     // Help/Info
+            Constraint::Min(0),    // Help/Info
         ])
         .split(area);
-        
+
     f.render_widget(block, area);
-    
+
     let vus_style = if app.active_tab().input_mode == InputMode::EditingStressVUs {
         Style::default().fg(app.theme.border_focus)
     } else {
@@ -2371,15 +2549,23 @@ fn render_stress_modal(f: &mut Frame, app: &mut App) {
     } else {
         Style::default().fg(app.theme.border)
     };
-    
-    let vus_input = Paragraph::new(app.stress_vus_input.clone())
-        .block(Block::default().title(" Virtual Users (Concurrency) ").borders(Borders::ALL).border_style(vus_style));
+
+    let vus_input = Paragraph::new(app.stress_vus_input.clone()).block(
+        Block::default()
+            .title(" Virtual Users (Concurrency) ")
+            .borders(Borders::ALL)
+            .border_style(vus_style),
+    );
     f.render_widget(vus_input, chunks[0]);
-    
-    let dur_input = Paragraph::new(app.stress_duration_input.clone())
-        .block(Block::default().title(" Duration (Seconds) ").borders(Borders::ALL).border_style(dur_style));
+
+    let dur_input = Paragraph::new(app.stress_duration_input.clone()).block(
+        Block::default()
+            .title(" Duration (Seconds) ")
+            .borders(Borders::ALL)
+            .border_style(dur_style),
+    );
     f.render_widget(dur_input, chunks[1]);
-    
+
     let help_text = vec![
         Line::from("Press Enter to Start"),
         Line::from("Press Tab to Switch Field"),
@@ -2392,29 +2578,32 @@ fn render_stress_modal(f: &mut Frame, app: &mut App) {
 fn render_curl_import_modal(f: &mut Frame, app: &mut App) {
     let area = centered_rect(60, 30, f.area());
     f.render_widget(ratatui::widgets::Clear, area);
-    
+
     let block = Block::default()
         .title(" Import cURL Command ")
         .borders(Borders::ALL)
         .border_style(Style::default().fg(app.theme.highlight));
-        
+
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .margin(1)
         .constraints([
             Constraint::Length(3), // Input
             Constraint::Length(1), // Spacer
-            Constraint::Min(0)     // Help
+            Constraint::Min(0),    // Help
         ])
         .split(area);
-        
+
     f.render_widget(block, area);
-    
-    let input = Paragraph::new(app.curl_import_input.clone())
-        .block(Block::default().title(" Paste cURL Command ").borders(Borders::ALL)
-        .border_style(Style::default().fg(app.theme.border_focus)));
+
+    let input = Paragraph::new(app.curl_import_input.clone()).block(
+        Block::default()
+            .title(" Paste cURL Command ")
+            .borders(Borders::ALL)
+            .border_style(Style::default().fg(app.theme.border_focus)),
+    );
     f.render_widget(input, chunks[0]);
-    
+
     let help_text = vec![
         Line::from("Press Enter to Import"),
         Line::from("Press Esc to Cancel"),
@@ -2426,7 +2615,7 @@ fn render_curl_import_modal(f: &mut Frame, app: &mut App) {
 fn render_cookie_modal(f: &mut Frame, app: &mut App) {
     let area = centered_rect(70, 70, f.area());
     f.render_widget(ratatui::widgets::Clear, area);
-    
+
     let block = Block::default()
         .title(" Manage Cookies ")
         .title_bottom(" d: Delete | Esc: Close ")
@@ -2439,109 +2628,184 @@ fn render_cookie_modal(f: &mut Frame, app: &mut App) {
     let inner_area = block.inner(area);
     let cookies = app.get_flattened_cookies();
 
-    let items: Vec<ListItem> = cookies.iter().enumerate().map(|(i, (host, val))| {
-        let style = if Some(i) == app.cookie_list_state.selected() {
-            Style::default().fg(app.theme.highlight).add_modifier(Modifier::BOLD)
-        } else {
-            Style::default().fg(app.theme.text_primary)
-        };
-        
-        // Truncate value if too long
-        let display_val = if val.len() > 50 {
-            format!("{}...", &val[0..47])
-        } else {
-            val.clone()
-        };
+    let items: Vec<ListItem> = cookies
+        .iter()
+        .enumerate()
+        .map(|(i, (host, val))| {
+            let style = if Some(i) == app.cookie_list_state.selected() {
+                Style::default()
+                    .fg(app.theme.highlight)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(app.theme.text_primary)
+            };
 
-        ListItem::new(Line::from(vec![
-            Span::styled(format!(" [{}] ", host), Style::default().fg(Color::Yellow)),
-            Span::styled(display_val, style),
-        ]))
-    }).collect();
+            // Truncate value if too long
+            let display_val = if val.len() > 50 {
+                format!("{}...", &val[0..47])
+            } else {
+                val.clone()
+            };
+
+            ListItem::new(Line::from(vec![
+                Span::styled(format!(" [{}] ", host), Style::default().fg(Color::Yellow)),
+                Span::styled(display_val, style),
+            ]))
+        })
+        .collect();
 
     let list = List::new(items)
         .block(Block::default().borders(Borders::NONE))
         .highlight_style(Style::default().add_modifier(Modifier::REVERSED))
         .highlight_symbol("> ");
-    
+
     f.render_stateful_widget(list, inner_area, &mut app.cookie_list_state);
 }
 
 fn render_stress_running_overlay(f: &mut Frame, app: &mut App) {
-     let area = f.area();
-     // Bottom right corner
-     let width = 40;
-     let height = 3;
-     let x = area.width.saturating_sub(width + 2);
-     let y = area.height.saturating_sub(height + 2); // Above status bar
-     let rect = ratatui::layout::Rect { x, y, width, height };
-     
-     f.render_widget(ratatui::widgets::Clear, rect);
-     
-     let (reqs, sex) = app.stress_progress.unwrap_or((0, 0));
-     
-     let text = format!(" Stress Test Running: {} reqs | {}s ", reqs, sex);
-     let p = Paragraph::new(text)
-         .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(Color::Red)))
-         .alignment(Alignment::Center);
-         
-     f.render_widget(p, rect);
+    let area = f.area();
+    // Bottom right corner
+    let width = 40;
+    let height = 3;
+    let x = area.width.saturating_sub(width + 2);
+    let y = area.height.saturating_sub(height + 2); // Above status bar
+    let rect = ratatui::layout::Rect {
+        x,
+        y,
+        width,
+        height,
+    };
+
+    f.render_widget(ratatui::widgets::Clear, rect);
+
+    let (reqs, sex) = app.stress_progress.unwrap_or((0, 0));
+
+    let text = format!(" Stress Test Running: {} reqs | {}s ", reqs, sex);
+    let p = Paragraph::new(text)
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(Color::Red)),
+        )
+        .alignment(Alignment::Center);
+
+    f.render_widget(p, rect);
 }
 
 fn render_stress_results(f: &mut Frame, app: &mut App) {
     if let Some(stats) = &app.stress_stats {
         let area = centered_rect(60, 60, f.area());
         f.render_widget(ratatui::widgets::Clear, area);
-        
+
         let block = Block::default()
             .title(" Stress Test Results ")
             .borders(Borders::ALL)
             .border_style(Style::default().fg(app.theme.success));
-        
+
         let inner = block.inner(area);
         f.render_widget(block, area);
-        
+
         let lines = vec![
-             Line::from(vec![Span::raw("Total Requests: "), Span::styled(format!("{}", stats.total_requests), Style::default().add_modifier(Modifier::BOLD))]),
-             Line::from(vec![Span::raw("Successful: "), Span::styled(format!("{}", stats.successful_requests), Style::default().fg(Color::Green))]),
-             Line::from(vec![Span::raw("Failed: "), Span::styled(format!("{}", stats.failed_requests), Style::default().fg(Color::Red))]),
-             Line::from(vec![Span::raw("Errors: "), Span::styled(format!("{}", stats.errors_count), Style::default().fg(Color::Red))]),
-             Line::from(vec![Span::raw("RPS: "), Span::styled(format!("{:.2}", stats.rps), Style::default().fg(Color::Cyan))]),
-             Line::from(""),
-             Line::from(Span::styled("Latency Distribution (ms):", Style::default().add_modifier(Modifier::UNDERLINED))),
-             Line::from(vec![Span::raw("  Avg: "), Span::raw(format!("{:.2}", stats.avg_latency_ms))]),
-             Line::from(vec![Span::raw("  Min: "), Span::raw(format!("{}", stats.min_latency_ms))]),
-             Line::from(vec![Span::raw("  Max: "), Span::raw(format!("{}", stats.max_latency_ms))]),
-             Line::from(vec![Span::raw("  P50: "), Span::raw(format!("{}", stats.p50_latency_ms))]),
-             Line::from(vec![Span::raw("  P90: "), Span::raw(format!("{}", stats.p90_latency_ms))]),
-             Line::from(vec![Span::raw("  P99: "), Span::raw(format!("{}", stats.p99_latency_ms))]),
-             Line::from(""),
-             Line::from(Span::styled("Status Codes:", Style::default().add_modifier(Modifier::UNDERLINED))),
+            Line::from(vec![
+                Span::raw("Total Requests: "),
+                Span::styled(
+                    format!("{}", stats.total_requests),
+                    Style::default().add_modifier(Modifier::BOLD),
+                ),
+            ]),
+            Line::from(vec![
+                Span::raw("Successful: "),
+                Span::styled(
+                    format!("{}", stats.successful_requests),
+                    Style::default().fg(Color::Green),
+                ),
+            ]),
+            Line::from(vec![
+                Span::raw("Failed: "),
+                Span::styled(
+                    format!("{}", stats.failed_requests),
+                    Style::default().fg(Color::Red),
+                ),
+            ]),
+            Line::from(vec![
+                Span::raw("Errors: "),
+                Span::styled(
+                    format!("{}", stats.errors_count),
+                    Style::default().fg(Color::Red),
+                ),
+            ]),
+            Line::from(vec![
+                Span::raw("RPS: "),
+                Span::styled(
+                    format!("{:.2}", stats.rps),
+                    Style::default().fg(Color::Cyan),
+                ),
+            ]),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Latency Distribution (ms):",
+                Style::default().add_modifier(Modifier::UNDERLINED),
+            )),
+            Line::from(vec![
+                Span::raw("  Avg: "),
+                Span::raw(format!("{:.2}", stats.avg_latency_ms)),
+            ]),
+            Line::from(vec![
+                Span::raw("  Min: "),
+                Span::raw(format!("{}", stats.min_latency_ms)),
+            ]),
+            Line::from(vec![
+                Span::raw("  Max: "),
+                Span::raw(format!("{}", stats.max_latency_ms)),
+            ]),
+            Line::from(vec![
+                Span::raw("  P50: "),
+                Span::raw(format!("{}", stats.p50_latency_ms)),
+            ]),
+            Line::from(vec![
+                Span::raw("  P90: "),
+                Span::raw(format!("{}", stats.p90_latency_ms)),
+            ]),
+            Line::from(vec![
+                Span::raw("  P99: "),
+                Span::raw(format!("{}", stats.p99_latency_ms)),
+            ]),
+            Line::from(""),
+            Line::from(Span::styled(
+                "Status Codes:",
+                Style::default().add_modifier(Modifier::UNDERLINED),
+            )),
         ];
-        
+
         // Add status codes
         let mut codes: Vec<&u16> = stats.status_dist.keys().collect();
         codes.sort();
-        let mut status_lines = codes.iter().map(|code| {
-             let count = stats.status_dist.get(code).unwrap();
-             let color = if **code >= 200 && **code < 300 {
-                 Color::Green
-             } else if **code >= 400 {
-                 Color::Red
-             } else {
-                 Color::Yellow
-             };
-             Line::from(vec![
-                 Span::raw(format!("  {}: ", code)),
-                 Span::styled(format!("{}", count), Style::default().fg(color))
-             ])
-        }).collect::<Vec<_>>();
-        
+        let mut status_lines = codes
+            .iter()
+            .map(|code| {
+                let count = stats.status_dist.get(code).unwrap();
+                let color = if **code >= 200 && **code < 300 {
+                    Color::Green
+                } else if **code >= 400 {
+                    Color::Red
+                } else {
+                    Color::Yellow
+                };
+                Line::from(vec![
+                    Span::raw(format!("  {}: ", code)),
+                    Span::styled(format!("{}", count), Style::default().fg(color)),
+                ])
+            })
+            .collect::<Vec<_>>();
+
         let mut all_lines = lines;
         all_lines.append(&mut status_lines);
         all_lines.push(Line::from(""));
         all_lines.push(Line::from("Press Esc to Close"));
-        
-        f.render_widget(Paragraph::new(all_lines).block(Block::default().borders(Borders::NONE)), inner);
+
+        f.render_widget(
+            Paragraph::new(all_lines).block(Block::default().borders(Borders::NONE)),
+            inner,
+        );
     }
 }

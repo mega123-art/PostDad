@@ -21,12 +21,14 @@ pub enum NetworkEvent {
         timeout_ms: Option<u64>,
         // SSL Configuration
         ssl_verify: bool,
-        ssl_ca_cert: Option<Vec<u8>>,      // CA cert bytes (pre-loaded)
-        ssl_client_cert: Option<Vec<u8>>,  // Client cert bytes
-        ssl_client_key: Option<Vec<u8>>,   // Client key bytes
+        ssl_ca_cert: Option<Vec<u8>>, // CA cert bytes (pre-loaded)
+        #[allow(dead_code)]
+        ssl_client_cert: Option<Vec<u8>>, // Client cert bytes
+        #[allow(dead_code)]
+        ssl_client_key: Option<Vec<u8>>, // Client key bytes
         // Proxy Configuration
         proxy_url: Option<String>,
-        proxy_auth: Option<(String, String)>,  // (user, pass)
+        proxy_auth: Option<(String, String)>, // (user, pass)
         no_proxy: Option<String>,
     },
     GotResponse(
@@ -88,8 +90,8 @@ pub async fn handle_network(
                 timeout_ms,
                 ssl_verify,
                 ssl_ca_cert,
-                ssl_client_cert,
-                ssl_client_key,
+                ssl_client_cert: _,
+                ssl_client_key: _,
                 proxy_url,
                 proxy_auth,
                 no_proxy,
@@ -107,36 +109,41 @@ pub async fn handle_network(
                     .danger_accept_invalid_certs(!ssl_verify);
 
                 // Add custom CA certificate if provided
-                if let Some(ca_bytes) = ssl_ca_cert {
-                    if let Ok(cert) = reqwest::Certificate::from_pem(&ca_bytes) {
-                        client_builder = client_builder.add_root_certificate(cert);
-                    }
+                if let Some(ca_bytes) = ssl_ca_cert
+                    && let Ok(cert) = reqwest::Certificate::from_pem(&ca_bytes)
+                {
+                    client_builder = client_builder.add_root_certificate(cert);
                 }
 
                 // Add client certificate for mTLS if both cert and key provided
+                // Note: native-tls does not support Identity::from_pem.
+                // To support mTLS with native-tls, we would need PKCS#12 (.p12) support.
+                // Disabling this temporarily to fix build on Windows without rustls/cmake.
+                /*
                 if let (Some(cert_bytes), Some(key_bytes)) = (ssl_client_cert, ssl_client_key) {
                     // Combine cert and key into a single PEM
                     let mut identity_pem = cert_bytes;
                     identity_pem.extend_from_slice(b"\n");
                     identity_pem.extend_from_slice(&key_bytes);
-                    
+
                     if let Ok(identity) = reqwest::Identity::from_pem(&identity_pem) {
                         client_builder = client_builder.identity(identity);
                     }
                 }
+                */
 
                 // Configure proxy if provided
-                if let Some(proxy_str) = proxy_url {
-                    if let Ok(mut proxy) = reqwest::Proxy::all(&proxy_str) {
-                        // Add proxy authentication if provided
-                        if let Some((user, pass)) = proxy_auth {
-                            proxy = proxy.basic_auth(&user, &pass);
-                        }
-                        client_builder = client_builder.proxy(proxy);
+                if let Some(proxy_str) = proxy_url
+                    && let Ok(mut proxy) = reqwest::Proxy::all(&proxy_str)
+                {
+                    // Add proxy authentication if provided
+                    if let Some((user, pass)) = proxy_auth {
+                        proxy = proxy.basic_auth(&user, &pass);
                     }
+                    client_builder = client_builder.proxy(proxy);
                 }
-                
-                // Note: no_proxy is passed but reqwest automatically respects 
+
+                // Note: no_proxy is passed but reqwest automatically respects
                 // the NO_PROXY environment variable, so we don't need to handle it explicitly.
                 // It's included in the event for potential future use or logging.
                 let _ = no_proxy; // Acknowledge the field is intentionally unused here
@@ -212,7 +219,7 @@ pub async fn handle_network(
                             .map(|b| b.to_vec())
                             .unwrap_or_else(|_| Vec::new());
 
-                let _ = sender
+                        let _ = sender
                             .send(NetworkEvent::GotResponse(
                                 bytes,
                                 status,
@@ -234,9 +241,10 @@ pub async fn handle_network(
                     .user_agent("PostDad/1.0")
                     .build()
                     .unwrap_or_else(|_| Client::new());
-                    
+
                 let query = r#"{"query": "query Introspection { __schema { types { name fields { name } } } }"}"#;
-                 let mut req_builder = client.post(&url)
+                let mut req_builder = client
+                    .post(&url)
                     .header("Content-Type", "application/json")
                     .body(query);
 
@@ -244,10 +252,10 @@ pub async fn handle_network(
                     req_builder = req_builder.header(k, v);
                 }
 
-                if let Ok(resp) = req_builder.send().await {
-                    if let Ok(text) = resp.text().await {
-                         let _ = sender.send(NetworkEvent::GotSchema(text)).await;
-                    }
+                if let Ok(resp) = req_builder.send().await
+                    && let Ok(text) = resp.text().await
+                {
+                    let _ = sender.send(NetworkEvent::GotSchema(text)).await;
                 }
             }
             NetworkEvent::RunGrpc {
@@ -259,7 +267,7 @@ pub async fn handle_network(
                 use_plaintext,
             } => {
                 // Execute gRPC request using grpcurl
-                let result = crate::grpc::execute_grpc_request(
+                let result = crate::net::grpc::execute_grpc_request(
                     &url,
                     &service_method,
                     proto_path.as_deref(),
@@ -267,7 +275,7 @@ pub async fn handle_network(
                     &headers,
                     use_plaintext,
                 );
-                
+
                 let _ = sender
                     .send(NetworkEvent::GotGrpcResponse {
                         success: result.success,
@@ -278,27 +286,37 @@ pub async fn handle_network(
                     .await;
             }
             NetworkEvent::ListGrpcServices { url, use_plaintext } => {
-                match crate::grpc::list_services(&url, use_plaintext) {
+                match crate::net::grpc::list_services(&url, use_plaintext) {
                     Ok(services) => {
                         let _ = sender.send(NetworkEvent::GotGrpcServices(services)).await;
                     }
                     Err(e) => {
-                        let _ = sender.send(NetworkEvent::GotGrpcServices(vec![format!("Error: {}", e)])).await;
+                        let _ = sender
+                            .send(NetworkEvent::GotGrpcServices(vec![format!("Error: {}", e)]))
+                            .await;
                     }
                 }
             }
-            NetworkEvent::DescribeGrpcService { url, service, use_plaintext } => {
-                match crate::grpc::describe_service(&url, &service, use_plaintext) {
-                    Ok(desc) => {
-                        let _ = sender.send(NetworkEvent::GotGrpcServiceDescription(desc)).await;
-                    }
-                    Err(e) => {
-                        let _ = sender.send(NetworkEvent::GotGrpcServiceDescription(format!("Error: {}", e))).await;
-                    }
+            NetworkEvent::DescribeGrpcService {
+                url,
+                service,
+                use_plaintext,
+            } => match crate::net::grpc::describe_service(&url, &service, use_plaintext) {
+                Ok(desc) => {
+                    let _ = sender
+                        .send(NetworkEvent::GotGrpcServiceDescription(desc))
+                        .await;
                 }
-            }
+                Err(e) => {
+                    let _ = sender
+                        .send(NetworkEvent::GotGrpcServiceDescription(format!(
+                            "Error: {}",
+                            e
+                        )))
+                        .await;
+                }
+            },
             _ => {}
         }
     }
 }
-
