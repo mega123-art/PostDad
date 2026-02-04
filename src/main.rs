@@ -82,13 +82,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         if app.should_open_editor() {
-            disable_raw_mode()?;
-            execute!(
+            let _ = disable_raw_mode();
+            let _ = execute!(
                 terminal.backend_mut(),
                 LeaveAlternateScreen,
                 DisableMouseCapture
-            )?;
-            terminal.show_cursor()?;
+            );
+            let _ = terminal.show_cursor();
 
             let editor_var = std::env::var("EDITOR");
             let editor_cmd = if let Ok(e) = editor_var {
@@ -224,14 +224,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             app.editor_mode = crate::app::EditorMode::None;
-            enable_raw_mode()?;
-            execute!(
+            if let Err(e) = enable_raw_mode() {
+                eprintln!("Error restoring raw mode: {}", e);
+            }
+            if let Err(e) = execute!(
                 terminal.backend_mut(),
                 EnterAlternateScreen,
                 EnableMouseCapture
-            )?;
-            terminal.hide_cursor()?;
-            terminal.clear()?;
+            ) {
+                eprintln!("Error restoring terminal state: {}", e);
+            }
+            let _ = terminal.hide_cursor();
+            let _ = terminal.clear();
         }
 
         if app.active_tab().trigger_oauth_flow {

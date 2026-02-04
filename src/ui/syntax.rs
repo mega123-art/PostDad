@@ -26,8 +26,11 @@ pub fn highlight<'a>(text: &'a str, extension: &str) -> Vec<Line<'a>> {
         .unwrap_or_else(|| ps.find_syntax_plain_text());
 
     // Use a theme - "base16-ocean.dark" is usually good for TUI
-    // Available defaults: base16-ocean.dark, base16-eighties.dark, base16-mocha.dark, base16-ocean.light
-    let theme = &ts.themes["base16-ocean.dark"];
+    // Use a theme - try "base16-ocean.dark", fallback to first available
+    let theme_name = "base16-ocean.dark";
+    let theme = ts.themes.get(theme_name)
+        .or_else(|| ts.themes.values().next())
+        .unwrap_or_else(|| panic!("No themes available in syntect"));
 
     let mut h = HighlightLines::new(syntax, theme);
     let mut lines = Vec::new();

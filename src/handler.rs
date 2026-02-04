@@ -867,17 +867,7 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 app.active_tab_mut().selected_tab = (current + 1) % 5;
             }
             KeyCode::Char('m') => {
-                if app.active_tab().selected_tab == 2 {
-                    let new_type = match app.active_tab().body_type {
-                        crate::app::BodyType::Raw => crate::app::BodyType::FormData,
-                        crate::app::BodyType::FormData => crate::app::BodyType::GraphQL,
-                        crate::app::BodyType::GraphQL => crate::app::BodyType::Grpc,
-                        crate::app::BodyType::Grpc => crate::app::BodyType::Raw,
-                    };
-                    app.active_tab_mut().body_type = new_type;
-                } else {
-                    app.cycle_method();
-                }
+                app.cycle_method();
             }
 
             KeyCode::Char('j') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -1176,6 +1166,28 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 } else {
                     // Open pre-request script editor
                     app.editor_mode = crate::app::EditorMode::PreRequestScript;
+                }
+            }
+            KeyCode::Char('t') => {
+                let tab = app.active_tab();
+                if tab.selected_tab == 2 {
+                    // Cycle Body Type
+                    let new_type = match tab.body_type {
+                        crate::app::BodyType::Raw => crate::app::BodyType::FormData,
+                        crate::app::BodyType::FormData => crate::app::BodyType::GraphQL,
+                        crate::app::BodyType::GraphQL => crate::app::BodyType::Grpc,
+                        crate::app::BodyType::Grpc => crate::app::BodyType::Raw,
+                    };
+                    app.active_tab_mut().body_type = new_type;
+                } else if tab.selected_tab == 3 {
+                    // Cycle Auth Type
+                    let new_auth = match tab.auth_type {
+                        crate::app::AuthType::None => crate::app::AuthType::Bearer,
+                        crate::app::AuthType::Bearer => crate::app::AuthType::Basic,
+                        crate::app::AuthType::Basic => crate::app::AuthType::OAuth2,
+                        crate::app::AuthType::OAuth2 => crate::app::AuthType::None,
+                    };
+                    app.active_tab_mut().auth_type = new_auth;
                 }
             }
             KeyCode::Char('T') => {
