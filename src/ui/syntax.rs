@@ -26,6 +26,7 @@ pub fn highlight<'a>(text: &'a str, extension: &str) -> Vec<Line<'a>> {
         .unwrap_or_else(|| ps.find_syntax_plain_text());
 
     // Use a theme - "base16-ocean.dark" is usually good for TUI
+    // Available defaults: base16-ocean.dark, base16-eighties.dark, base16-mocha.dark, base16-ocean.light
     // Use a theme - try "base16-ocean.dark", fallback to first available
     let theme_name = "base16-ocean.dark";
     let theme = ts.themes.get(theme_name)

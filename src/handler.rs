@@ -1304,28 +1304,6 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                     app.editor_mode = crate::app::EditorMode::GraphQLVariables;
                 }
             }
-            KeyCode::Char('t') => {
-                let tab = app.active_tab();
-                if tab.selected_tab == 2 {
-                    // Cycle Body Type
-                    let new_type = match tab.body_type {
-                        crate::app::BodyType::Raw => crate::app::BodyType::FormData,
-                        crate::app::BodyType::FormData => crate::app::BodyType::GraphQL,
-                        crate::app::BodyType::GraphQL => crate::app::BodyType::Grpc,
-                        crate::app::BodyType::Grpc => crate::app::BodyType::Raw,
-                    };
-                    app.active_tab_mut().body_type = new_type;
-                } else if tab.selected_tab == 3 {
-                    // Cycle Auth Type
-                    let new_auth = match tab.auth_type {
-                        crate::app::AuthType::None => crate::app::AuthType::Bearer,
-                        crate::app::AuthType::Bearer => crate::app::AuthType::Basic,
-                        crate::app::AuthType::Basic => crate::app::AuthType::OAuth2,
-                        crate::app::AuthType::OAuth2 => crate::app::AuthType::None,
-                    };
-                    app.active_tab_mut().auth_type = new_auth;
-                }
-            }
 
             KeyCode::Char('1') => {
                 if app.active_tab().selected_tab == 3
