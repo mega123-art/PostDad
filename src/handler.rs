@@ -1305,7 +1305,6 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 }
             }
 
-
             KeyCode::Char('1') => {
                 if app.active_tab().selected_tab == 3
                     && app.active_tab().auth_type == crate::app::AuthType::OAuth2
