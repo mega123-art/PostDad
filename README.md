@@ -77,7 +77,7 @@ Three-pane TUI: collections on left, request builder on top, response at bottom.
 | `C` | Copy response to clipboard |
 | `D` | Download response (detects binary/images, saves to file) |
 | `Shift+D` | Force download binary content |
-| `P` | Preview Response (or open in external viewer) |
+| `Shift+P` | Preview Response (or open in external viewer) |
 | `D` | **Diff View**: Press `D` on a history item (side bar) to select Base, then `D` on another to Compare. |
 | `y` | Copy JSON path of selected node |
 
@@ -99,6 +99,12 @@ For OAuth, hit `Enter` to start the browser flow.
 
 Needs [grpcurl](https://github.com/fullstorydev/grpcurl) installed. Set your URL to the gRPC server, switch body mode to gRPC, and go.
 
+**gRPC Shortcuts (in Body Tab):**
+- `u` - Edit Service/Method
+- `p` - Edit Proto file path
+- `L` - List services (using reflection)
+- `D` - Describe service (shows details in modal)
+
 ### Mock server
 
 `Ctrl+k` opens the mock server manager. You can spin up endpoints on localhost for testing.
@@ -106,7 +112,7 @@ Needs [grpcurl](https://github.com/fullstorydev/grpcurl) installed. Set your URL
 ### Scripts
 
 - `P` - Edit pre-request script (runs before sending)
-- `Shift+T` - Edit test script (runs after response)
+- `T` - Edit test script (runs after response)
 
 Scripts are written in [Rhai](https://rhai.rs/). You get functions like `set_header()`, `json_path()`, `timestamp()`, etc.
 
