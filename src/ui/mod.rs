@@ -69,7 +69,10 @@ pub fn render_splash(f: &mut Frame) {
 
     // Version & hint
     let hint = Paragraph::new(Line::from(vec![
-        Span::styled("v0.2.0", Style::default().fg(Color::DarkGray)),
+        Span::styled(
+            format!("v{}", env!("CARGO_PKG_VERSION")),
+            Style::default().fg(Color::DarkGray),
+        ),
         Span::raw(" • "),
         Span::styled(
             "Press any key to continue...",
