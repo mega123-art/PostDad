@@ -2,3 +2,6 @@
 *.hcl
 *.json
 check_errors*.log
+API_DOCS.html
+API_DOCS.md
+FUTURE_FEATURES.md
