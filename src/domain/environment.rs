@@ -35,17 +35,16 @@ env "prod" {
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
         for block in body.blocks() {
-            if block.identifier() == "env" {
-                if let Some(label) = block.labels().first() {
-                    let variables: HashMap<String, String> =
-                        hcl::from_body(block.body().clone())
-                            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+            if block.identifier() == "env"
+                && let Some(label) = block.labels().first()
+            {
+                let variables: HashMap<String, String> = hcl::from_body(block.body().clone())
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
-                    envs.push(Environment {
-                        name: label.as_str().to_string(),
-                        variables,
-                    });
-                }
+                envs.push(Environment {
+                    name: label.as_str().to_string(),
+                    variables,
+                });
             }
         }
 

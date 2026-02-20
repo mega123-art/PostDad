@@ -1,1 +1,4 @@
 /target
+*.hcl
+*.json
+check_errors*.log

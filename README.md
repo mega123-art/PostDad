@@ -1,259 +1,349 @@
-# PostDad 👟
+# PostDad
 
-> "He's not mad at your slow API, just disappointed."
+A fast API client for your terminal. Written in Rust.
 
-**Postdad** is a high-speed, local-first Terminal UI (TUI) for testing APIs. It’s built in **Rust** 🦀 because Electron apps shouldn't eat 1GB of RAM just to send a GET request.
-
-<pre>
+```
    ____           _      _           _ 
   |  _ \ ___  ___| |_ __| | __ _  __| |
   | |_) / _ \/ __| __/ _` |/ _` |/ _` |
   |  __/ (_) \__ \ || (_| | (_| | (_| |
   |_|   \___/|___/\__\__,_|\__,_|\__,_|
-                                       
-</pre>
+```
 
-## Why Postdad?
+I got tired of waiting for Postman to load so I built this.
 
-Modern dev tools are bloated. Postman takes 5-10 seconds to launch. Postdad takes **<100ms**.
-
-| Feature | Postman/Insomnia | CURL/HTTPie | **Postdad** |
-| :--- | :--- | :--- | :--- |
-| **Speed** | 🐢 Slow (Electron) | ⚡ Fast | 🚀 **Blazing Fast (Rust)** |
-| **RAM Usage** | 500MB+ | ~5MB | **~15MB** |
-| **Interface** | Mouse Clicky | CLI Args | **Vim-Style TUI** |
-| **Storage** | Cloud Sync (Forced) | History File | **Local .hcl Files** |
-
-## Features
-
-- **Vim-Motion Navigation**: Use `j`, `k`, and `/` to fly through your request history.
-- **Three-Pane Layout**: Collections on the left, Request on top, Response at bottom.
-- **JSON Explorer**: Interactive tree view for massive JSON responses. Expansion/Collapse nodes with arrow keys.
-- **Dad's Garage**: Local-first collection storage. No login required.
-- **Async & Non-Blocking**: The UI never freezes, even if the API times out.
-- **Latency Heartbeat**: Real-time graph monitoring your API's pulse.
-- **Zen Mode**: Press `Ctrl+z` to focus purely on the response data.
-- **Multi-Tab Interface**: Create, switch, and close multiple request tabs (`Ctrl+n`).
-
-## Installation
+## Install
 
 ```bash
 cargo install PostDad
 ```
 
-### Update
-```bash
-cargo install --force PostDad
+Then run `PostDad` to start.
+
+## What it does
+
+Three-pane TUI: collections on left, request builder on top, response at bottom.
+
+- **Vim keys** - `j`/`k` to move, `e` to edit URL, `/` to search
+- **JSON explorer** - expand/collapse nodes in large responses
+- **Local storage** - everything saved as `.hcl` files, no account needed
+- **Image Rendering** - View images directly in terminal (High-res via Sixel/Kitty, fallback to Ascii/Blocks)
+- **Non-blocking** - UI stays responsive even when requests hang
+
+## Quick reference
+
+### General
+| Key | Action |
+|-----|--------|
+| `q` | Quit |
+| `?` | Toggle help overlay |
+| `Ctrl+h` | Switch focus: Sidebar ↔ Main |
+| `Ctrl+e` | Switch environment |
+| `Ctrl+t` | Cycle themes |
+| `Ctrl+z` | Toggle Zen mode |
+
+### Command Palette
+| Key | Action |
+|-----|--------|
+| `Ctrl+p` | Open Command Palette (search commands) |
+| `:` | Enter Command Mode (type commands like `quit`, `new`, `theme`) |
+
+### Tabs & Navigation
+| Key | Action |
+|-----|--------|
+| `Ctrl+n` | New request tab |
+| `Ctrl+x` | Close current tab |
+| `[ / ]` | Cycle between open tabs |
+| `Tab` | Cycle: Params → Headers → Body → Auth → Chain |
+| `j / k` | Move up/down in lists |
+| `h / l` | Collapse/expand JSON nodes |
+| `/` | Search/filter JSON response |
+
+### Request Building
+| Key | Action |
+|-----|--------|
+| `e` | Edit URL |
+| `m` | Cycle HTTP method (or body mode in Body tab) |
+| `H` | Edit headers (external editor) |
+| `b` | Edit body (external editor) |
+| `Enter` | Send request |
+| `s` | Save request to collection |
+| `f` | Toggle fullscreen response |
+
+### Response
+| Key | Action |
+|-----|--------|
+| `C` | Copy response to clipboard |
+| `D` | Download response (detects binary/images, saves to file) |
+| `Shift+D` | Force download binary content |
+| `P` | Preview Response (or open in external viewer) |
+| `D` | **Diff View**: Press `D` on a history item (side bar) to select Base, then `D` on another to Compare. |
+| `y` | Copy JSON path of selected node |
+
+### Body modes
+
+Press `m` in the Body tab to cycle through: Raw JSON, Multipart (for file uploads), GraphQL, gRPC.
+
+### Auth
+
+Press `t` in the Auth tab to switch between: None, Bearer token, Basic auth, OAuth 2.0.
+
+For OAuth, hit `Enter` to start the browser flow.
+
+### WebSocket
+
+`Ctrl+w` toggles WebSocket mode. Connect to a WS endpoint, send messages, see responses in real-time.
+
+### gRPC
+
+Needs [grpcurl](https://github.com/fullstorydev/grpcurl) installed. Set your URL to the gRPC server, switch body mode to gRPC, and go.
+
+### Mock server
+
+`Ctrl+k` opens the mock server manager. You can spin up endpoints on localhost for testing.
+
+### Scripts
+
+- `P` - Edit pre-request script (runs before sending)
+- `Shift+T` - Edit test script (runs after response)
+
+Scripts are written in [Rhai](https://rhai.rs/). You get functions like `set_header()`, `json_path()`, `timestamp()`, etc.
+
+Example:
+```rhai
+set_header("X-Request-ID", uuid());
+test("Status OK", status_code() == 200);
 ```
 
-## Usage
+### Chaining Requests
+
+You can extract values from a response to use in future requests (like an Auth Token).
+
+1. Go to the **Chain** tab (Tab 5).
+2. Add a rule: `auth_token` <- `data.token`.
+3. This saves `data.token` from the JSON response into the `{{auth_token}}` variable.
+4. Use `{{auth_token}}` in your next request header/body.
+
+### Import
 
 ```bash
-Postdad
+PostDad --import collection.json
 ```
 
-- **Ctrl+z**: Toggle Zen Mode (Focus)
-- **Ctrl+w**: Toggle WebSocket Mode
-- **f**: Toggle Fullscreen Response
-- **Enter**: Send Request (or Sync Param Edit)
-- **e**: Edit URL (Press **Tab** to cycle method)
-- **Tab**: Switch Request Tabs (Params, Headers, Body, Auth)
-- **c**: Copy as cURL command
-- **G** (Shift+g): Copy as Python (requests) code
-- **J** (Shift+j): Copy as JavaScript (fetch) code
-- **M** (Shift+m): Generate API Documentation (Markdown)
-- **Ctrl+k**: Open Mock Server Manager
-- **Ctrl+t**: Cycle Themes (Default, Matrix, Cyberpunk, Dracula)
-- **Ctrl+n**: New Request Tab
-- **Ctrl+x**: Close Request Tab
-- **[ / ]**: Cycle Request Tabs
-- **q**: Quit (Dad needs a nap)
+Supports both **Postman** and **OpenAPI v3** formats (auto-detected):
 
-### Tab Context Actions
-- **Params Tab**: 
-  - `a`: Add Param | `d`: Delete Param | `e`: Edit Key/Value
-- **Auth Tab**: 
-  - `t`: Switch Type (None/Bearer/Basic/OAuth2) | `u`: Edit User | `p`: Edit Password
-  - **OAuth 2.0**: `Enter` to Start Flow | `i`/`1`/`2` to Edit Config
-- **Chain Tab**:
-  - `a`: Add Rule | `d`: Delete Rule | `e`: Edit Key/Path
-- **Body Tab**:
-  - `m`: Switch Type (Raw/Multipart/GraphQL)
-  - **Multipart**: `a` Add | `Space` Toggle File | `d` Delete
-  - **GraphQL**: `Q` (Shift+q) Edit Query | `V` (Shift+v) Edit Variables
-  - **GraphQL Introspection 🔍**: Auto-complete from schema (Press `Ctrl+I`)
-## Roadmap to Recognition
+- **Postman**: Import your existing Postman collections
+- **OpenAPI**: Import `openapi.json` specs to auto-generate request collections
 
-- [x] Basic TUI Engine
-- [x] Async Request Worker
-- [x] JSON Response Explorer (Interactive)
-- [x] Collection Management (`.hcl` support)
-- [x] "Dad's Directions" (Copy as Curl) (`c` key)
-- [x] Response Timing (ms precision)
-- [x] Request Chaining (**Variable Extraction** from JSON Response using full JSONPath support via `jsonpath_lib`)
-- [x] Latency Heartbeat (Real-time graph)
-- [x] Zen Mode (Focus on Response)
-- [x] Search / Filter JSON (`/` key)
-- [x] Fullscreen Response View (`f` key)
-- [x] Interactive Query Params (Table Editor)
-- [x] Extended Auth (Basic, Bearer, **OAuth 2.0** with Browser Flow)
-- [x] Time-Travel History (Restore full response state)
-- [x] Environment Variables
-- [x] Request Body Editor (`b` key -> `$EDITOR`)
-   - *Pro Tip*: For VS Code integration, run `export EDITOR="code --wait"` (Mac/Linux) or set `$env:EDITOR="code --wait"` (PowerShell).
-- [x] Method Cycling (`m` key)
-- [x] Multipart Form Data Support (Form Data & File Uploads via `Space`)
-- [x] GraphQL Support (Query & Variables editing)
-- [x] Status Codes (Color-coded)
-- [x] Help Screen (`?` key)
-- [x] Header Editing (`H` key -> `$EDITOR` as JSON)
-- [x] Persistence (`s` key -> `saved.hcl`)
-- [x] **Persistence for Chain Rules & Multipart Data**
-- [x] Refactor Collection Saving Logic
-- [x] **gRPC Support 🚀**: Full gRPC client via `grpcurl` (Requires `grpcurl` installed)
-- [x] **Cookie Jar**: Automatically stores and sends `Set-Cookie` headers for stateful sessions
-- [x] **Code Generators**: Generate request code for Python (Requests) and JavaScript (Fetch) with `G` and `J` keys
-- [x] **WebSocket Support**: Full WS/WSS client with `Ctrl+W` to toggle mode, real-time messaging, and connection management
-- [x] **Pre-Request Scripts**: Rhai scripting engine for running hooks before requests (`P` to edit)
-- [x] **Collection Runner**: Run all requests in a collection sequentially with status code assertions (`Ctrl+R`)
-- [x] **Dynamic Themes**: Cycle between Matrix, Cyberpunk, Dracula, and Default themes (`Ctrl+T`)
-- [x] **Splash Screen**: Awesome retro-terminal startup screen
-- [x] **Import/Export**: Import Postman Collections (`.json`) via `--import` flag
-- [x] **Test Scripts**: Post-request assertions (Rhai) and console logs (`Shift+T` to edit)
-- [x] **Request Tabs 📑**: Work on multiple requests simultaneously
-- [x] **Syntax Highlighting 🎨**: In-app JSON/code highlighting
-- [x] **Response History 📜**: View previous responses for a request
-- [x] **Request Diff 🔀**: Compare two responses side by side (Press 'D' in History)
-- [x] **API Documentation Gen 📝**: Generate docs from collections (Press 'M')
-- [x] **Mock Servers 🎭**: Create mock endpoints for testing (Press 'Ctrl+K')
-- [x] **GraphQL Introspection 🔍**: Auto-complete from schema (Press 'Ctrl+I')
+Example with OpenAPI:
+```bash
+PostDad --import openapi.json
+# → Detected OpenAPI v3 format
+# → Successfully imported 'Pet Store API' v1.0.0 to 'collections/pet_store_api.hcl'
+# → 15 requests created
+```
 
-### WebSocket Mode (`Ctrl+W` to enter)
-- **e**: Edit WebSocket URL
-- **Enter**: Connect / Disconnect
-- **i**: Start typing a message
-- **Enter** (while typing): Send message
-- **j/k**: Scroll through message history
-- **x**: Clear message history
-- **?**: WebSocket Help
+### cURL Import
 
-### Collection Runner (`Ctrl+R` to enter)
-Run all requests in a collection sequentially and see pass/fail results.
+You can also import single requests from cURL commands while the app is running:
 
-- **j/k**: Navigate collections (before run) or scroll results (after run)
-- **Enter**: Run selected collection
-- **x**: Clear results
-- **Esc**: Exit runner mode
-- **?**: Help
+1. Press `I` (Shift+i) to open the import modal
+2. Paste your cURL command
+3. Press `Enter` to populate the current request tab
 
-### Mock Server Manager (`Ctrl+K`)
-Create and run local mock endpoints.
+Supported features:
+- Method (`-X`, `--request`)
+- Headers (`-H`, `--header`)
+- Body (`-d`, `--data`)
+- Form Data (`-F`, `--form`)
+- Basic Auth (`-u`, `--user`)
+- Auto-handles quotes and line continuations
 
-- **s**: Start / Stop Server (Port 3000 default)
-- **a**: Add new mock route (template)
-- **d**: Delete selected route
-- **Esc**: Exit Manager
+### Stress Testing
 
-### gRPC Mode (Switch Body to 'gRPC' with `m` key)
+PostDad includes a built-in load testing tool (similar to k6 but simpler).
 
-Make gRPC calls using `grpcurl` as backend.
+1. Press `%` (`Shift+5`) to open the Stress Test modal.
+2. Enter **Virtual Users (VUs)** (concurrency) and **Duration** (seconds).
+3. Hit `Enter` to start the attack.
 
-**Prerequisites:** Install [grpcurl](https://github.com/fullstorydev/grpcurl)
+**Metrics:**
+- Real-time progress bar
+- Requests per second (RPS)
+- Latency (Avg, P95, Max)
+- Error rate / Status codes
 
-**Usage:**
-1. Set URL to your gRPC server (e.g., `localhost:50051`)
-2. Press `m` in Body tab until you get to `gRPC (Proto)` mode
-3. Press `u` to set Service/Method (e.g., `grpc.health.v1.Health/Check`)
-4. Press `p` to set Proto file path (optional, for servers without reflection)
-5. Press `b` to edit JSON payload
-6. Press `Enter` to send the request
+**Note**: This runs from your local machine, so you're limited by your own CPU/Network.
 
-**Keys:**
-- **u**: Edit Service/Method
-- **p**: Edit Proto file path
-- **b**: Edit request body (JSON format)
-- **L** (Shift+L): Discover services via server reflection
-- **D** (in services list): Show service method signatures
-- **Enter**: Send gRPC request / Select service
+### Sentinel Mode 🛡️
 
+A live TUI monitoring dashboard for your API endpoints. 
 
-**Status Code Assertions:**
-By default, expects HTTP 200. Add `expected_status = XXX` in your `.hcl` file to specify a different expected status:
+1. Press `Shift+S` (or `S` in command mode) to **Start/Stop** Sentinel Mode.
+2. The dashboard replaces the main view with:
+   - **Real-time Latency Sparkline**: Visualizing performance trends.
+   - **Status History**: Recent HTTP status codes.
+   - **Key Metrics**: Total checks, failed checks, and last latency.
+3. **Controls**:
+   - `S`: Start/Stop monitoring.
+   - `L`: Save history to CSV log.
+   - `Esc`: Exit dashboard.
+
+### Sentinel Failure Conditions
+
+By default, Sentinel alerts on non-200 status codes. You can also fail on specific response content using the `X-Fail-If` header configuration (hidden from actual request).
+
+1. In Header tab, add `X-Fail-If` with a keyword (e.g., `error_code":"500`).
+2. If that keyword appears in the response body, Sentinel marks it as a failure (Status 500).
+
+### Documentation Generator
+
+Generate offline documentation for your collections in one keystroke.
+
+1. Press `M` (or use Command Palette: `Export HTML Docs`).
+2. Generates:
+   - `API_DOCS.md`: Markdown file for Git/Wiki.
+   - `API_DOCS.html`: Single-page, beautiful HTML site with sidebar navigation and search.
+3. Both files are saved to your current directory.
+
+### Environments
+
+Separate your logic (Dev/Staging/Prod) using `environments.hcl`.
 
 ```hcl
-request "Create User" {
-  method = "POST"
+env "production" {
+  base_url = "https://api.myapp.com"
+  token = "prod_secret_123"
+}
+
+env "local" {
+  base_url = "http://localhost:3000"
+  token = "dev_token"
+}
+```
+
+Use variables in your requests like syntax: `{{base_url}}/users`.
+Switch environments with `Ctrl+e`.
+
+## CLI mode
+
+Run collections without the TUI - useful for CI/CD pipelines.
+
+```bash
+# Run a collection
+PostDad run api_tests.hcl
+
+# Start Mock Server
+PostDad mock --port 3000 --routes routes.json
+
+# With environment variables
+PostDad run api_tests.hcl -e production.hcl
+
+# JSON output for scripting
+PostDad run api_tests.hcl --json > results.json
+
+# Verbose mode (shows URLs)
+PostDad run api_tests.hcl -v
+```
+
+Exit codes: 0 if all requests pass, 1 if any fail.
+
+## Storage
+
+Everything lives in `.hcl` files. Press `s` to save your current request.
+
+```hcl
+request "Get users" {
+  method = "GET"
   url = "https://api.example.com/users"
-  expected_status = 201
+  expected_status = 200
+  timeout_ms = 5000
 }
 ```
 
-### Pre-Request Scripts (`P` to edit)
-Press `P` to open your `$EDITOR` and write Rhai scripts that run before each request.
+Chain rules and environment variables are persisted too.
 
-**Available Functions:**
-| Function | Description |
-|----------|-------------|
-| `set_header(name, value)` | Add or modify a request header |
-| `get_header(name)` | Get current header value |
-| `set_var(name, value)` | Set an environment variable |
-| `get_var(name)` | Get an environment variable |
-| `set_body(body)` | Override the request body |
-| `set_url(url)` | Override the request URL |
-| `timestamp()` | Get Unix timestamp (seconds) |
-| `timestamp_ms()` | Get Unix timestamp (milliseconds) |
-| `uuid()` | Generate a random UUID v4 |
-| `base64_encode(text)` | Encode text as Base64 |
-| `base64_decode(text)` | Decode Base64 text |
-| `print(msg)` | Debug log (shows in output) |
+## Why not just use curl?
 
-**Constants:** `METHOD`, `URL`, `BODY`
+Curl is great for one-offs. This is for when you're actively developing against an API and want to:
+- Keep a collection of requests around
+- See formatted JSON responses
+- Chain requests together (extract a token from response A, use it in request B)
+- Not retype the same headers over and over
 
-**Example Script:**
-```rhai
-// Add timestamp header to every request
-let ts = timestamp();
-set_header("X-Request-Time", ts.to_string());
+## SSL Certificates
 
-// Add request ID
-let id = uuid();
-set_header("X-Request-ID", id);
+PostDad supports custom SSL certificates for enterprise environments:
+
+### Configuration via Environment Variables
+
+```bash
+# Custom CA certificate (for self-signed/internal CAs)
+export POSTDAD_CA_CERT=/path/to/ca.pem
+
+# Client certificate for mTLS
+export POSTDAD_CLIENT_CERT=/path/to/client.pem
+export POSTDAD_CLIENT_KEY=/path/to/client.key
+
+# Disable SSL verification (development only!)
+export POSTDAD_SSL_VERIFY=false
 ```
 
-### Post-Request Test Scripts (`Shift+T`)
+### What's Supported
 
-Run assertions on the response. Results appear in the status bar and "Tests & Console" panel.
+- **Custom CA Certificates**: Trust internal/self-signed certificates
+- **Client Certificates (mTLS)**: Authenticate with client certificates
+- **Skip Verification**: For development with self-signed certs (not recommended for production)
 
-**Additional Functions:**
-| Function | Description |
-|----------|-------------|
-| `test(name, bool)` | Record a test result |
-| `status_code()` | Get response status code |
-| `response_time()` | Get latency in ms |
-| `response_body()` | Get raw response body |
-| `json_path(query)` | Extract value using JSONPath (e.g. `$.data.id`) |
+## Proxy Support
 
-**Example:**
-```rhai
-test("Status is 200", status_code() == 200);
-test("Fast response", response_time() < 500);
+PostDad supports HTTP/HTTPS proxies for corporate networks:
 
-let token = json_path("$.token");
-test("Token received", token != "");
+### Configuration via Environment Variables
 
-if token != "" {
-    print("Received token: " + token);
-}
+```bash
+# Standard proxy variables (auto-detected)
+export HTTPS_PROXY=http://proxy.company.com:8080
+export HTTP_PROXY=http://proxy.company.com:8080
+
+# Hosts to bypass proxy (comma-separated)
+export NO_PROXY=localhost,127.0.0.1,.internal.company.com
+
+# Proxy authentication (if required)
+export POSTDAD_PROXY_USER=username
+export POSTDAD_PROXY_PASS=password
 ```
 
-## Leveling Up to Postman (Future Ideas)
+### What's Supported
 
-To truly rival Postman, we still need:
+- **HTTP/HTTPS Proxies**: Route all traffic through corporate proxy
+- **Proxy Authentication**: Basic auth for authenticated proxies
+- **NO_PROXY Bypass**: Skip proxy for specific hosts/domains
 
-1. **More Code Generators 💻**: Add support for Go, Rust, Ruby, PHP, and C#
-2. **Proxy Support 🔒**: HTTP/SOCKS proxy configuration for corporate environments
-3. **SSL Certificate Config 🔐**: Custom CA certs, client certificates
-4. **Request Timeout Settings ⏱️**: Per-request timeout configuration
+## Code Generators
+
+Instantly generate code snippets for your current request in multiple languages:
+
+| Key | Language | Output |
+|-----|----------|--------|
+| `c` | cURL | Shell command |
+| `G` | Python | `requests` library |
+| `J` | JavaScript | `fetch` API |
+| `O` | Go | `net/http` package |
+| `R` | Rust | `reqwest` crate |
+| `B` | Ruby | `Net::HTTP` library |
+| `E` | PHP | `curl_*` functions |
+| `S` | C# | `HttpClient` class |
+
+The generated code is copied directly to your clipboard.
+
+## Themes
+
+Customize your look with `Ctrl+t`.
+- **Default**: Classic dark mode
+- **Matrix**: Green on black
+- **Cyberpunk**: Neon pink/cyan
+- **Dracula**: Vampire contrast
 
 ## License
 

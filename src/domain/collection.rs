@@ -17,7 +17,10 @@ pub struct RequestConfig {
     pub graphql_variables: Option<String>,
     #[serde(default)]
     pub expected_status: Option<u16>,
+    #[serde(default)]
+    pub timeout_ms: Option<u64>,
     pub pre_request_script: Option<String>,
+    pub post_request_script: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -27,8 +30,6 @@ pub struct Collection {
 }
 
 impl Collection {
-    // ... (load_from_dir stays the same, it derives Deserialize)
-
     pub fn load_from_dir(dir: &str) -> std::io::Result<Vec<Collection>> {
         let path = Path::new(dir);
         if !path.exists() {
@@ -65,14 +66,12 @@ request "JSONPlaceholder" {
                 let mut requests = HashMap::new();
 
                 for block in body.blocks() {
-                    if block.identifier() == "request" {
-                        if let Some(label) = block.labels().first() {
-                            let config: RequestConfig = hcl::from_body(block.body().clone())
-                                .map_err(|e| {
-                                    std::io::Error::new(std::io::ErrorKind::InvalidData, e)
-                                })?;
-                            requests.insert(label.as_str().to_string(), config);
-                        }
+                    if block.identifier() == "request"
+                        && let Some(label) = block.labels().first()
+                    {
+                        let config: RequestConfig = hcl::from_body(block.body().clone())
+                            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+                        requests.insert(label.as_str().to_string(), config);
                     }
                 }
 
@@ -92,12 +91,13 @@ request "JSONPlaceholder" {
         url: &str,
         body: &str,
         headers: &HashMap<String, String>,
-        extract: &Vec<(String, String)>,
-        form_data: &Vec<(String, String, bool)>,
+        extract: &[(String, String)],
+        form_data: &[(String, String, bool)],
         body_type: &str,
         graphql_query: &str,
         graphql_variables: &str,
         pre_request_script: &str,
+        post_request_script: &str,
     ) -> std::io::Result<()> {
         let path = Path::new("collections/saved.hcl");
 
@@ -116,7 +116,7 @@ request "JSONPlaceholder" {
         let form_data_opt = if form_data.is_empty() {
             None
         } else {
-            Some(form_data.clone())
+            Some(form_data.to_vec())
         };
 
         let body_opt = if body.trim().is_empty() {
@@ -146,6 +146,11 @@ request "JSONPlaceholder" {
         } else {
             Some(pre_request_script.to_string())
         };
+        let post_request_script_opt = if post_request_script.trim().is_empty() {
+            None
+        } else {
+            Some(post_request_script.to_string())
+        };
 
         let config = RequestConfig {
             url: url.to_string(),
@@ -158,11 +163,12 @@ request "JSONPlaceholder" {
             graphql_query: graphql_query_opt,
             graphql_variables: graphql_variables_opt,
             expected_status: None,
+            timeout_ms: None,
             pre_request_script: pre_request_script_opt,
+            post_request_script: post_request_script_opt,
         };
 
-        let body_hcl = hcl::to_string(&config)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let body_hcl = hcl::to_string(&config).map_err(std::io::Error::other)?;
 
         let entry = format!("\nrequest \"{}\" {{\n{}\n}}\n", name, body_hcl);
 
