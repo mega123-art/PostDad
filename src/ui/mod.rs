@@ -1367,7 +1367,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 Line::from(vec![
                     Span::raw("Press "),
                     Span::styled(
-                        "Shift+D",
+                        "D",
                         Style::default()
                             .add_modifier(Modifier::BOLD)
                             .fg(Color::Cyan),
@@ -1377,7 +1377,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
                 Line::from(vec![
                     Span::raw("Press "),
                     Span::styled(
-                        "Shift+P",
+                        "P",
                         Style::default()
                             .add_modifier(Modifier::BOLD)
                             .fg(Color::Cyan),
@@ -1493,14 +1493,13 @@ pub fn render(f: &mut Frame, app: &mut App) {
             "Response:",
             "  C          Copy Response Output",
             "  D          Download Response (Binary)",
-            "  Shift+D    Force Download",
-            "  Shift+P    Preview Response (External)",
+            "  P          Preview Response (External)",
             "  y          Copy JSON Path",
             "  /          Search / Filter JSON",
             "  (Images render automatically in supported terminals)",
             "",
             "Scripts & Testing:",
-            "  P          Edit Pre-Request Script",
+            "  P          Edit Pre-Request Script (If not binary)",
             "  T          Edit Post/Test Script",
             "  %          Stress Test (Shift+5)",
             "  S          Sentinel Mode (Live Monitor)",
