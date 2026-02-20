@@ -63,7 +63,8 @@ Three-pane TUI: collections on left, request builder on top, response at bottom.
 | Key | Action |
 |-----|--------|
 | `e` | Edit URL |
-| `m` | Cycle HTTP method (or body mode in Body tab) |
+| `m` | Cycle HTTP method |
+| `t` | Switch Body Type (Body Tab) / Auth Type (Auth Tab) |
 | `H` | Edit headers (external editor) |
 | `b` | Edit body (external editor) |
 | `Enter` | Send request |
@@ -82,7 +83,7 @@ Three-pane TUI: collections on left, request builder on top, response at bottom.
 
 ### Body modes
 
-Press `m` in the Body tab to cycle through: Raw JSON, Multipart (for file uploads), GraphQL, gRPC.
+Press `t` in the Body tab to cycle through: Raw JSON, Multipart (for file uploads), GraphQL, gRPC.
 
 ### Auth
 
