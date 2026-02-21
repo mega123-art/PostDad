@@ -80,6 +80,8 @@ Three-pane TUI: collections on left, request builder on top, response at bottom.
 | `Shift+P` | Preview Response (or open in external viewer) |
 | `D` | **Diff View**: Press `D` on a history item (side bar) to select Base, then `D` on another to Compare. |
 | `y` | Copy JSON path of selected node |
+| `Y` | Copy JSON path as Rhai Script |
+| `/` | Search/Filter JSON tree |
 
 ### Body modes
 

@@ -1287,7 +1287,24 @@ pub fn handle_key_events(key_event: KeyEvent, app: &mut App) {
                 {
                     let filter = &tab.search_query;
                     let path = crate::ui::get_json_path(entries, selected_idx, filter);
-                    app.copy_to_clipboard(path);
+                    app.copy_to_clipboard(path.clone());
+                    app.show_notification(format!("Copied JSONPath: {}", path));
+                }
+            }
+            KeyCode::Char('Y') => {
+                let tab = app.active_tab();
+                if let Some(selected_idx) = tab.json_list_state.selected()
+                    && let Some(entries) = &tab.response_json
+                {
+                    let filter = &tab.search_query;
+                    let path = crate::ui::get_json_path(entries, selected_idx, filter);
+                    let rhai_path = if path.starts_with("$.") {
+                        format!("response.body.{}", &path[2..])
+                    } else {
+                        format!("response.body.{}", path)
+                    };
+                    app.copy_to_clipboard(rhai_path.clone());
+                    app.show_notification(format!("Copied Rhai Path: {}", rhai_path));
                 }
             }
             KeyCode::Char('Q') => {

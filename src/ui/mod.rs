@@ -1498,6 +1498,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
             "  D          Download Response (Binary)",
             "  P          Preview Response (External)",
             "  y          Copy JSON Path",
+            "  Y          Copy Rhai Script Path",
             "  /          Search / Filter JSON",
             "  (Images render automatically in supported terminals)",
             "",
