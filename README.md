@@ -166,6 +166,28 @@ Supported features:
 - Basic Auth (`-u`, `--user`)
 - Auto-handles quotes and line continuations
 
+### Export (Postman & Insomnia)
+
+Convert your local `.hcl` collections to formats suitable for other API clients:
+
+```bash
+# Export to Postman
+PostDad --export-postman collections/my_collection.hcl output_postman.json
+
+# Export to Insomnia
+PostDad --export-insomnia collections/my_collection.hcl output_insomnia.json
+```
+
+### GitHub Gist Sync
+
+Backup your environments and collections to a private GitHub Gist:
+
+```bash
+PostDad --gist-sync <GITHUB_PERSONAL_ACCESS_TOKEN>
+```
+
+This will automatically create or update a private Gist containing your `.hcl` files.
+
 ### Stress Testing
 
 PostDad includes a built-in load testing tool (similar to k6 but simpler).

@@ -43,6 +43,30 @@ pub fn parse_args() -> Option<CliAction> {
                 std::process::exit(1);
             }
         }
+        "--export-postman" => {
+            if args.len() >= 4 {
+                Some(CliAction::ExportPostman(args[2].clone(), args[3].clone()))
+            } else {
+                eprintln!("Usage: PostDad --export-postman <collection.hcl> <output.json>");
+                std::process::exit(1);
+            }
+        }
+        "--export-insomnia" => {
+            if args.len() >= 4 {
+                Some(CliAction::ExportInsomnia(args[2].clone(), args[3].clone()))
+            } else {
+                eprintln!("Usage: PostDad --export-insomnia <collection.hcl> <output.json>");
+                std::process::exit(1);
+            }
+        }
+        "--gist-sync" => {
+            if args.len() >= 3 {
+                Some(CliAction::GistSync(args[2].clone()))
+            } else {
+                eprintln!("Usage: PostDad --gist-sync <github_token>");
+                std::process::exit(1);
+            }
+        }
         "run" => {
             if args.len() < 3 {
                 eprintln!("Usage: PostDad run <collection.hcl> [-e env.hcl] [-v] [--json]");
@@ -91,6 +115,9 @@ pub fn parse_args() -> Option<CliAction> {
 
 pub enum CliAction {
     Import(String),
+    ExportPostman(String, String),
+    ExportInsomnia(String, String),
+    GistSync(String),
     Run(RunArgs),
 }
 
@@ -102,6 +129,9 @@ fn print_help() {
     PostDad                              Launch the TUI
     PostDad run <collection.hcl>         Run a collection
     PostDad --import <file.json>         Import a Postman collection
+    PostDad --export-postman <hcl> <out> Export to Postman format
+    PostDad --export-insomnia <hcl> <out> Export to Insomnia format
+    PostDad --gist-sync <token>          Sync to GitHub gist
 
 {}OPTIONS:{}
     -e, --env <file.hcl>    Environment file to use
@@ -228,7 +258,7 @@ pub async fn run_collection_cli(args: RunArgs) -> i32 {
     if failed > 0 { 1 } else { 0 }
 }
 
-fn load_collection(path: &str) -> Result<Collection, String> {
+pub fn load_collection(path: &str) -> Result<Collection, String> {
     let path = Path::new(path);
 
     if !path.exists() {

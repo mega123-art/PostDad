@@ -36,6 +36,33 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     std::process::exit(1);
                 }
             },
+            features::cli::CliAction::ExportPostman(collection, output) => {
+                match features::export::export_to_postman(&collection, &output) {
+                    Ok(_) => std::process::exit(0),
+                    Err(e) => {
+                        eprintln!("Export error: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            features::cli::CliAction::ExportInsomnia(collection, output) => {
+                match features::export::export_to_insomnia(&collection, &output) {
+                    Ok(_) => std::process::exit(0),
+                    Err(e) => {
+                        eprintln!("Export error: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+            features::cli::CliAction::GistSync(token) => {
+                match features::gist_sync::sync_to_gist(&token).await {
+                    Ok(_) => std::process::exit(0),
+                    Err(e) => {
+                        eprintln!("Sync error: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
             features::cli::CliAction::Run(args) => {
                 let exit_code = features::cli::run_collection_cli(args).await;
                 std::process::exit(exit_code);

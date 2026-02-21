@@ -1,5 +1,7 @@
 pub mod cli;
 pub mod doc_gen;
+pub mod export;
+pub mod gist_sync;
 pub mod import;
 pub mod runner;
 pub mod scripting;
