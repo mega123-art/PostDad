@@ -159,7 +159,7 @@ fn print_help() {
 /// Run a collection in CLI mode
 pub async fn run_collection_cli(args: RunArgs) -> i32 {
     // Load collection
-    let collection = match load_collection(&args.collection_path) {
+    let collection = match load_collection(&args.collection_path).await {
         Ok(c) => c,
         Err(e) => {
             eprintln!(
@@ -258,18 +258,19 @@ pub async fn run_collection_cli(args: RunArgs) -> i32 {
     if failed > 0 { 1 } else { 0 }
 }
 
-pub fn load_collection(path: &str) -> Result<Collection, String> {
-    let path = Path::new(path);
+pub async fn load_collection(path: &str) -> Result<Collection, String> {
+    let content = crate::features::import::fetch_or_read(path)
+        .await
+        .map_err(|e| format!("Failed to load {}: {}", path, e))?;
 
-    if !path.exists() {
-        return Err(format!("File not found: {}", path.display()));
+    if content.trim_start().starts_with('{') {
+        if let Ok(c) = crate::features::import::parse_auto(path).await {
+            return Ok(c);
+        }
     }
 
-    let content =
-        std::fs::read_to_string(path).map_err(|e| format!("Failed to read file: {}", e))?;
-
     let body: hcl::Body =
-        hcl::from_str(&content).map_err(|e| format!("Failed to parse HCL: {}", e))?;
+        hcl::from_str(&content).map_err(|e| format!("Failed to parse file: {}", e))?;
 
     let mut requests = HashMap::new();
 
@@ -288,7 +289,7 @@ pub fn load_collection(path: &str) -> Result<Collection, String> {
         return Err("No requests found in collection".to_string());
     }
 
-    let name = path
+    let name = Path::new(path)
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("collection")

@@ -134,7 +134,11 @@ You can extract values from a response to use in future requests (like an Auth T
 ### Import
 
 ```bash
+# Import a file
 PostDad --import collection.json
+
+# Import directly from a URL
+PostDad --import https://api.example.com/openapi.json
 ```
 
 Supports both **Postman** and **OpenAPI v3** formats (auto-detected):
@@ -144,7 +148,7 @@ Supports both **Postman** and **OpenAPI v3** formats (auto-detected):
 
 Example with OpenAPI:
 ```bash
-PostDad --import openapi.json
+PostDad --import https://petstore.swagger.io/v2/swagger.json
 # → Detected OpenAPI v3 format
 # → Successfully imported 'Pet Store API' v1.0.0 to 'collections/pet_store_api.hcl'
 # → 15 requests created
@@ -259,8 +263,14 @@ Switch environments with `Ctrl+e`.
 Run collections without the TUI - useful for CI/CD pipelines.
 
 ```bash
-# Run a collection
+# Run a native HCL collection
 PostDad run api_tests.hcl
+
+# Run a Postman JSON file directly
+PostDad run postman_collection.json
+
+# Run an OpenAPI spec directly from a URL
+PostDad run https://api.example.com/openapi.json
 
 # Start Mock Server
 PostDad mock --port 3000 --routes routes.json

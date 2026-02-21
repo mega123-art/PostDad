@@ -2,8 +2,8 @@ use crate::features::cli::load_collection;
 use serde_json::json;
 use std::fs;
 
-pub fn export_to_postman(collection_path: &str, output_path: &str) -> Result<(), String> {
-    let collection = load_collection(collection_path)?;
+pub async fn export_to_postman(collection_path: &str, output_path: &str) -> Result<(), String> {
+    let collection = load_collection(collection_path).await?;
 
     let mut items = Vec::new();
 
@@ -72,8 +72,8 @@ pub fn export_to_postman(collection_path: &str, output_path: &str) -> Result<(),
     Ok(())
 }
 
-pub fn export_to_insomnia(collection_path: &str, output_path: &str) -> Result<(), String> {
-    let collection = load_collection(collection_path)?;
+pub async fn export_to_insomnia(collection_path: &str, output_path: &str) -> Result<(), String> {
+    let collection = load_collection(collection_path).await?;
 
     let mut resources = Vec::new();
 

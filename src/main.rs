@@ -29,15 +29,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse CLI arguments
     if let Some(action) = features::cli::parse_args() {
         match action {
-            features::cli::CliAction::Import(path) => match features::import::import_auto(&path) {
-                Ok(_) => std::process::exit(0),
-                Err(e) => {
-                    eprintln!("Import error: {}", e);
-                    std::process::exit(1);
+            features::cli::CliAction::Import(path) => {
+                match features::import::import_auto(&path).await {
+                    Ok(_) => std::process::exit(0),
+                    Err(e) => {
+                        eprintln!("Import error: {}", e);
+                        std::process::exit(1);
+                    }
                 }
-            },
+            }
             features::cli::CliAction::ExportPostman(collection, output) => {
-                match features::export::export_to_postman(&collection, &output) {
+                match features::export::export_to_postman(&collection, &output).await {
                     Ok(_) => std::process::exit(0),
                     Err(e) => {
                         eprintln!("Export error: {}", e);
@@ -46,7 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
             features::cli::CliAction::ExportInsomnia(collection, output) => {
-                match features::export::export_to_insomnia(&collection, &output) {
+                match features::export::export_to_insomnia(&collection, &output).await {
                     Ok(_) => std::process::exit(0),
                     Err(e) => {
                         eprintln!("Export error: {}", e);

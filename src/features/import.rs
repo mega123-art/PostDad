@@ -67,9 +67,8 @@ struct Body {
     formdata: Option<Vec<KeyValue>>,
 }
 
-pub fn import_postman_collection(file_path: &str) -> std::io::Result<()> {
-    let content = fs::read_to_string(file_path)?;
-    let pm_collection: PostmanCollection = serde_json::from_str(&content)
+pub fn parse_postman_collection(content: &str) -> std::io::Result<Collection> {
+    let pm_collection: PostmanCollection = serde_json::from_str(content)
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
 
     let mut requests = HashMap::new();
@@ -77,11 +76,13 @@ pub fn import_postman_collection(file_path: &str) -> std::io::Result<()> {
     // Flatten items
     flatten_items(&pm_collection.item, &mut requests, "");
 
-    let collection = Collection {
+    Ok(Collection {
         name: pm_collection.info.name.clone(),
         requests,
-    };
+    })
+}
 
+pub fn save_collection(collection: &Collection) -> std::io::Result<String> {
     let safe_name = collection.name.replace(" ", "_").to_lowercase();
     let file_name = format!("collections/{}.hcl", safe_name);
 
@@ -100,12 +101,7 @@ pub fn import_postman_collection(file_path: &str) -> std::io::Result<()> {
 
     fs::write(&file_name, hcl_content)?;
 
-    println!(
-        "Successfully imported '{}' to '{}'",
-        collection.name, file_name
-    );
-
-    Ok(())
+    Ok(file_name)
 }
 
 fn flatten_items(items: &[Item], requests: &mut HashMap<String, RequestConfig>, prefix: &str) {
@@ -282,9 +278,8 @@ struct OpenApiSchema {
     default: Option<serde_json::Value>,
 }
 
-pub fn import_openapi(file_path: &str) -> std::io::Result<()> {
-    let content = fs::read_to_string(file_path)?;
-    let spec: OpenApiSpec = serde_json::from_str(&content).map_err(|e| {
+pub fn parse_openapi(content: &str) -> std::io::Result<Collection> {
+    let spec: OpenApiSpec = serde_json::from_str(content).map_err(|e| {
         std::io::Error::new(
             std::io::ErrorKind::InvalidData,
             format!("Invalid OpenAPI JSON: {}", e),
@@ -426,36 +421,10 @@ pub fn import_openapi(file_path: &str) -> std::io::Result<()> {
         ));
     }
 
-    let collection = Collection {
+    Ok(Collection {
         name: spec.info.title.clone(),
         requests,
-    };
-
-    let safe_name = collection.name.replace(" ", "_").to_lowercase();
-    let file_name = format!("collections/{}.hcl", safe_name);
-
-    if !std::path::Path::new("collections").exists() {
-        fs::create_dir("collections")?;
-    }
-
-    let mut hcl_content = String::new();
-
-    for (name, config) in &collection.requests {
-        let body_hcl = hcl::to_string(&config).map_err(std::io::Error::other)?;
-
-        let entry = format!("\nrequest \"{}\" {{\n{}\n}}\n", name, body_hcl);
-        hcl_content.push_str(&entry);
-    }
-
-    fs::write(&file_name, hcl_content)?;
-
-    println!(
-        "Successfully imported OpenAPI spec '{}' v{} to '{}'",
-        spec.info.title, spec.info.version, file_name
-    );
-    println!("  → {} requests created", collection.requests.len());
-
-    Ok(())
+    })
 }
 
 /// Get example value from schema, or placeholder
@@ -531,25 +500,50 @@ fn schema_to_value(schema: &OpenApiSchema) -> serde_json::Value {
     }
 }
 
-/// Auto-detect file format and import accordingly
-pub fn import_auto(file_path: &str) -> std::io::Result<()> {
-    let content = fs::read_to_string(file_path)?;
+pub async fn fetch_or_read(path_or_url: &str) -> std::io::Result<String> {
+    if path_or_url.starts_with("http://") || path_or_url.starts_with("https://") {
+        reqwest::get(path_or_url)
+            .await
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?
+            .text()
+            .await
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))
+    } else {
+        std::fs::read_to_string(path_or_url)
+    }
+}
+
+pub async fn parse_auto(path_or_url: &str) -> std::io::Result<Collection> {
+    let content = fetch_or_read(path_or_url).await?;
 
     // Try to parse as JSON first
     if let Ok(json) = serde_json::from_str::<serde_json::Value>(&content) {
         // Check for OpenAPI v3 signature
         if json.get("openapi").is_some() {
             println!("Detected OpenAPI v3 format");
-            return import_openapi(file_path);
+            return parse_openapi(&content);
         }
         // Check for Postman signature
         if json.get("info").is_some() && json.get("item").is_some() {
             println!("Detected Postman Collection format");
-            return import_postman_collection(file_path);
+            return parse_postman_collection(&content);
         }
     }
 
     // Default to Postman for backwards compatibility
     println!("Format not detected, attempting Postman import...");
-    import_postman_collection(file_path)
+    parse_postman_collection(&content)
+}
+
+/// Auto-detect file format and import accordingly
+pub async fn import_auto(file_path: &str) -> std::io::Result<()> {
+    let collection = parse_auto(file_path).await?;
+    let reqs = collection.requests.len();
+    let file_name = save_collection(&collection)?;
+    println!(
+        "Successfully imported '{}' to '{}'",
+        collection.name, file_name
+    );
+    println!("  → {} requests created", reqs);
+    Ok(())
 }
